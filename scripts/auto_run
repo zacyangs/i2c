@@ -1,0 +1,3 @@
+call {$fsdbDumpfile("i2c_tb.fsdb")}
+call {$fsdbDumpvars(0, i2c_tb)}
+run 1ms
