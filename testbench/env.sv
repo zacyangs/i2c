@@ -1,9 +1,9 @@
 class env;
     virtual apb apb;
-    virtual axi_lite axi;
+    virtual axi_lite  axi[];
     test_base tb;
 
-    function new(virtual apb apb, virtual axi_lite axi);
+    function new(virtual apb apb, virtual axi_lite  axi[]);
         this.apb = apb;
         this.axi = axi;
     endfunction

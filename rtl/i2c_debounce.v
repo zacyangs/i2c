@@ -1,21 +1,26 @@
 module i2c_debounce (
-    input   clk,
-    input   rstn,
+    input               clk,
+    input               rstn,
 
-    inout   scl,
-    inout   sda,
+    inout               scl,
+    inout               sda,
 
-    output  sta_det,
-    output  sto_det,
-    output  reg busy,
-    output  scl_rising,
-    output  scl_faling,
+    input       [13:0]  debounce_cnt,
+    output              sta_det,
+    output              sto_det,
+    output  reg         busy,
+    output              scl_rising,
+    output              scl_faling,
 
-    input   scl_o,
-    output  scl_i,
+    input               scl_gauge_en,
+    output  reg [31:0]  thigh,
+    output  reg [31:0]  tlow,
 
-    input   sda_o,
-    output  sda_i
+    input               scl_o,
+    output              scl_i,
+
+    input               sda_o,
+    output              sda_i
 );
 
 reg [ 1:0] cSCL, cSDA;      // capture SCL and SDA
@@ -23,9 +28,30 @@ reg [ 2:0] fSCL, fSDA;      // SCL and SDA filter inputs
 reg        sSCL, sSDA;      // filtered and synchronized SCL and SDA inputs
 reg        dSCL, dSDA;      // delayed versions of sSCL and sSDA
 reg [13:0] filter_cnt;      // clock divider for filter
+reg [31:0] timing_cnt;
+
 
 assign scl = scl_o ? 1'bz : 1'b0;
 assign sda = sda_o ? 1'bz : 1'b0;
+
+always@(posedge clk or negedge rstn)
+begin
+    if(!rstn) begin
+        timing_cnt <= 32'b0;
+        thigh      <= 32'b0;
+        tlow       <= 32'b0;
+    end
+    else if(scl_gauge_en) begin
+        if(scl_rising || scl_faling)
+            timing_cnt <= 32'b0;
+        else if(busy)
+            timing_cnt <= timing_cnt + 1'b1;
+
+        if(scl_rising) tlow  <= timing_cnt;
+        if(scl_faling) thigh <= timing_cnt;
+    end
+end
+
 
 
 // capture SDA and SCL
@@ -45,8 +71,8 @@ always @(posedge clk or negedge rstn)
     if (!rstn) 
         filter_cnt <= 14'h0;
     else if (~|filter_cnt)
-        filter_cnt <= 8; //16x I2C bus frequency
-    else                   
+        filter_cnt <= debounce_cnt; //16x I2C bus frequency
+    else
         filter_cnt <= filter_cnt -1;
 
 

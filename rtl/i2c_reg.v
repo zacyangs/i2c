@@ -24,7 +24,15 @@ module i2c_reg(
 
     output reg  [6:0]   cr,
     input       [7:0]   sr,
-    input       [7:0]   irq_req
+    input       [7:0]   irq_req,
+
+    output reg  [31:0]  tsusta,
+    output reg  [31:0]  tsusto,
+    output reg  [31:0]  thdsta,
+    output reg  [31:0]  tsudat,
+    output reg  [31:0]  tbuf,
+    output reg  [31:0]  thigh,
+    output reg  [31:0]  tlow
 );
 
 reg         gie = 0;
@@ -73,6 +81,13 @@ begin
             9'h110 : adr        <= apb_wdata[7:1];
             9'h11c : ten_adr    <= apb_wdata[2:0];
             9'h120 : rx_pirq    <= apb_wdata[4:0];
+            9'h128 : tsusta     <= apb_wdata[31:0];
+            9'h12c : tsusto     <= apb_wdata[31:0];
+            9'h130 : thdsta     <= apb_wdata[31:0];
+            9'h134 : tsudat     <= apb_wdata[31:0];
+            9'h138 : tbuf       <= apb_wdata[31:0];
+            9'h13c : thigh      <= apb_wdata[31:0];
+            9'h140 : tlow       <= apb_wdata[31:0];
             default: ;
         endcase
     end
@@ -87,12 +102,19 @@ begin
         9'h100: apb_rdata <= {25'b0, cr  }; 
         9'h104: apb_rdata <= {24'b0, sr  }; 
         9'h108: apb_rdata <= {24'b0, txr };
-        9'h10c: apb_rdata <= {24'b0, rx_fifo_rdat};
-        9'h110: apb_rdata <= {24'b0, adr, 1'b0};
+        9'h10c: apb_rdata <= {26'b0, rx_fifo_rdat};
+        9'h110: apb_rdata <= {26'b0, adr, 1'b0};
         9'h114: apb_rdata <= {27'b0, tx_fifo_ocy};
         9'h118: apb_rdata <= {27'b0, rx_fifo_ocy};
         9'h11c: apb_rdata <= {29'b0, ten_adr};
         9'h120: apb_rdata <= {27'b0, rx_pirq};
+        9'h128: apb_rdata <= tsusta;
+        9'h12c: apb_rdata <= tsusto;
+        9'h130: apb_rdata <= thdsta;
+        9'h134: apb_rdata <= tsudat;
+        9'h138: apb_rdata <= tbuf;
+        9'h13c: apb_rdata <= thigh;
+        9'h140: apb_rdata <= tlow;
         default : apb_rdata <= 32'hdeadbeef;
     endcase
 end
@@ -107,7 +129,7 @@ always@(posedge clk)
 begin
     if(srst_set)
         srst_cnt <= 4'ha;
-    else if(srst_cnt > 0)
+    else if(|srst_cnt)
         srst_cnt <= srst_cnt - 1'b1;
 
     if(srst_set)
@@ -129,14 +151,8 @@ assign rx_fifo_rd   = rd_en && (apb_addr[8:0] == 9'h10c);
 
 // interrupt handler
 assign wr_isr       = wr_en && (apb_addr[8:0] == 9'h020);
-assign isr_clr[0]   = wr_isr && apb_wdata[0];
-assign isr_clr[1]   = wr_isr && apb_wdata[1];
-assign isr_clr[2]   = wr_isr && apb_wdata[2];
-assign isr_clr[3]   = wr_isr && apb_wdata[3];
-assign isr_clr[4]   = wr_isr && apb_wdata[4];
-assign isr_clr[5]   = wr_isr && apb_wdata[5];
-assign isr_clr[6]   = wr_isr && apb_wdata[6];
-assign isr_clr[7]   = wr_isr && apb_wdata[7];
+assign isr_clr[7:0] = {8{wr_isr}} & apb_wdata[7:0];
+
 
 assign isr_set[7:0] = irq_req[7:0];
 

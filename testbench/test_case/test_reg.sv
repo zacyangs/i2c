@@ -2,7 +2,7 @@ class test_reg extends test_base;
 
     int tmp;
 
-    function new(virtual apb apb, virtual axi_lite axi);
+    function new(virtual apb apb, virtual axi_lite axi[]);
         super.new(apb, axi);
     endfunction
 

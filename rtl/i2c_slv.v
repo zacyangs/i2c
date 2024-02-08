@@ -10,7 +10,6 @@ module i2c_slv(
     output reg      sr_aas, // addressed as slave
     output reg      sr_abgc,
     output reg      sr_srw,
-    output reg      sr_bb,
     output reg      irq_nas,// not addressed as slave
     output          irq_tx_empty,
     output          irq_tx_done,
@@ -26,7 +25,7 @@ module i2c_slv(
 
     input           sta,
     input           sto,
-    input           scl_rising,
+    input           scl_rising, // TODO, this should be adjustable
     input           scl_faling,
     output reg      sda_o,
     input           sda_i,
@@ -58,7 +57,6 @@ wire      gc_set;
 wire      ack_set;
 wire      aas_nxt;
 wire      abgc_nxt;
-wire      bb_nxt;
 wire      rx_wr_nxt;
 wire      cnt_8;
 wire      header_ack_set;
@@ -93,9 +91,6 @@ assign irq_rx_err  = (aas_set || gc_set) && cr_txak;
 assign irq_tx_done = (sr_srw) && (state == ACK) && scl_rising && sda_i;
 assign irq_tx_empty= state == SUSPEND && tx_empty;
 
-assign bb_nxt  = sto ? 1'b0 : 
-                 sta ? 1'b1 : 
-                 sr_bb;
 
 assign rx_wr_nxt = state == RECV_DATA && cnt_8 && scl_faling;
 assign rx_dat    = rx_shift;
@@ -112,10 +107,10 @@ assign header_ack_clr = state == ACK && scl_faling;
 
 always@(*)
 begin
-    nstate[2:0] = state[2:0];
+    nstate[2:0]  = state[2:0];
     cnt_nxt[3:0] = 0;
-    sda_o = 1'b1;
-    scl_o = 1'b1;
+    sda_o        = 1'b1;
+    scl_o        = 1'b1;
     case(state)
         IDLE : begin
             if(cr_en && sta)
@@ -193,7 +188,6 @@ begin
         sr_srw          <= 1'b0;
         sr_aas          <= 1'b0;
         sr_abgc         <= 1'b0;
-        sr_bb           <= 1'b0;
         irq_nas         <= 1'b1;
         rx_wr           <= 1'b0;
         cnt[3:0]        <= 3'b0;
@@ -207,7 +201,6 @@ begin
             sr_srw      <= rx_shift_nxt[0];
         sr_aas          <= aas_nxt;
         sr_abgc         <= abgc_nxt;
-        sr_bb           <= bb_nxt;
         irq_nas         <= nas_nxt;
         rx_wr           <= rx_wr_nxt;
         if(scl_rising) 

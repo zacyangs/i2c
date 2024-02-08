@@ -2,21 +2,29 @@ module i2c_core(
     input           clk,
     input           rstn,
 
-    input           sta,
-    input           sto,
-
     input   [9:0]   slv_adr,
 
     input   [7:0]   cr,
     output  [7:0]   sr,
     output  [7:0]   irq_req,
-    input   [4:0]   rx_fifo_pirq,
     output  [4:0]   tx_fifo_ocy,
-    output  [4:0]   rx_fifo_ocy,
     input           tx_fifo_wr,
-    input   [9:0]   tx_fifo_wdat,
+    input   [9:0]   tx_fifo_din,
+    input   [4:0]   rx_fifo_pirq,
+    output  [4:0]   rx_fifo_ocy,
     input           rx_fifo_rd,
-    input   [7:0]   rx_fifo_rdat,
+    input   [7:0]   rx_fifo_dout,
+
+    input      [13:0]   debounct_cnt,
+    input      [31:0]   tsusta,
+    input      [31:0]   thdsta,
+    input      [31:0]   tsusto,
+    input      [31:0]   tsudat,
+    input      [31:0]   thddat,
+    input      [31:0]   tlow,
+    input      [31:0]   thigh,
+    input      [31:0]   tbuf,
+    input               cr_msms,
 
     inout           sda,
     inout           scl
@@ -31,43 +39,39 @@ module i2c_core(
     //End of automatic reg
     //Start of automatic wire
     //Define assign wires here
+    wire                        sr_bb                           ;
     wire                        rx_fifo_pfull                   ;
     //Define instance wires here
     wire                        tx_fifo_rd                      ;
-    wire [9:0]                  tx_fifo_rdat                    ;
+    wire [7:0]                  tx_fifo_dout                    ;
     wire                        tx_fifo_empty                   ;
     wire                        tx_fifo_full                    ;
     wire                        rx_fifo_empty                   ;
     wire                        rx_fifo_wr                      ;
-    wire [7:0]                  rx_fifo_wdat                    ;
+    wire [7:0]                  rx_fifo_din                     ;
     wire                        rx_fifo_full                    ;
+    wire                        cr_tx                           ;
+    wire                        cr_gcen                         ;
+    wire                        cr_txak                         ;
+    wire                        cr_en                           ;
+    wire                        sr_abgc                         ;
+    wire                        sr_aas                          ;
+    wire                        sr_srw                          ;
+    wire                        irq_nas                         ;
+    wire                        irq_tx_err                      ; // WIRE_NEW
+    wire [3:0]                  cmd                             ;
+    wire                        cmd_ack                         ;
+    wire                        phy_rx                          ;
+    wire                        phy_tx                          ;
+    wire                        req_sta                         ;
+    wire                        req_sto                         ;
+    wire                        sta_det                         ;
+    wire                        sto_det                         ;
+    wire                        al                              ;
+    wire                        scl_gauge_en                    ;
     wire                        busy                            ;
     wire                        scl_rising                      ;
     wire                        scl_faling                      ;
-    wire                        scl_o                           ;
-    wire                        scl_i                           ;
-    wire                        sda_o                           ;
-    wire                        sda_i                           ;
-    wire                        cr_en                           ;
-    wire                        cr_gcen                         ;
-    wire                        cr_txak                         ;
-    wire                        sr_aas                          ;
-    wire                        sr_abgc                         ;
-    wire                        sr_srw                          ;
-    wire                        sr_bb                           ;
-    wire                        irq_nas                         ;
-    wire                        irq_tx_empty                    ;
-    wire                        irq_tx_done                     ;
-    wire                        irq_rx_err                      ;
-    wire                        slv_tx_rd                       ; // WIRE_NEW
-    wire [7:0]                  slv_tx_dat                      ; // WIRE_NEW
-    wire                        slv_rx_wr                       ; // WIRE_NEW
-    wire [7:0]                  slv_rx_dat                      ; // WIRE_NEW
-    wire                        mst_tx_rd                       ; // WIRE_NEW
-    wire [7:0]                  mst_tx_dat                      ; // WIRE_NEW
-    wire                        mst_rx_wr                       ; // WIRE_NEW
-    wire [7:0]                  mst_rx_dat                      ; // WIRE_NEW
-
     //End of automatic wire
     //End of automatic define
 
@@ -75,8 +79,7 @@ module i2c_core(
 
 assign sr_bb = busy;
 
-assign rx_fifo_pfull = (rx_fifo_ocy[4:0] == rx_fifo_pirq[4:0]) &&
-                        |rx_fifo_pirq[4:0];
+assign rx_fifo_pfull = (rx_fifo_ocy[4:0] == rx_fifo_pirq[4:0]) && |rx_fifo_pirq[4:0];
 
 assign {
     cr_gcen,
@@ -105,86 +108,92 @@ assign irq_req = {
     !sr_bb,
     rx_fifo_pfull,
     tx_fifo_empty,
-    2'b0
-        };
+    irq_tx_err,
+    al};
 
-assign tx_fifo_rd = cr_msms ? mst_tx_rd : slv_tx_rd;
-assign slv_tx_dat = tx_fifo_rdat[7:0];
 
 sync_fifo#(.DW(10), .DEPTH(16)) u_tx_fifo (/*autoinst*/
         .clk                    (clk                            ), //input
         .rstn                   (rstn && (!cr_txfifo_rst)       ), //input
         .rd                     (tx_fifo_rd                     ), //input
-        .dout                   (tx_fifo_rdat[9:0]              ), //output
+        .dout                   (tx_fifo_dout[9:0]              ), //output
         .empty                  (tx_fifo_empty                  ), //output
         .wr                     (tx_fifo_wr                     ), //input
-        .din                    (tx_fifo_wdat[9:0]              ), //input
+        .din                    (tx_fifo_din[9:0]               ), //input
         .full                   (tx_fifo_full                   ), //output
         .usedw                  (tx_fifo_ocy[4:0]               )  //output // INST_NEW
     );
 
 
-assign rx_fifo_wr   = cr_msms ? mst_rx_wr : slv_rx_wr;
-assign rx_fifo_wdat = cr_msms ? mst_rx_dat : slv_rx_dat;
-
 sync_fifo #( .DW(8), .DEPTH(16)) u_rx_fifo (/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
         .rd                     (rx_fifo_rd                     ), //I
-        .dout                   (rx_fifo_rdat[7:0]              ), //O
+        .dout                   (rx_fifo_dout[7:0]              ), //O
         .empty                  (rx_fifo_empty                  ), //O
         .wr                     (rx_fifo_wr                     ), //I
-        .din                    (rx_fifo_wdat[7:0]              ), //I
+        .din                    (rx_fifo_din[7:0]               ), //I
         .full                   (rx_fifo_full                   ), //O
         .usedw                  (rx_fifo_ocy[4:0]               )  //O
     );
 
-i2c_debounce u_i2c_debounce ( /*autoinst*/
+i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
-        .scl                    (scl                            ), //IO
-        .sda                    (sda                            ), //IO
-        .sta_det                (sta                            ), //O
-        .sto_det                (sto                            ), //O
+        .slv_addr               (slv_adr[7:0]                   ), //I
+        .cr_msms                (cr_msms                        ), //I
+        .cr_tx                  (cr_tx                          ), //I
+        .cr_gcen                (cr_gcen                        ), //I
+        .cr_txak                (cr_txak                        ), //I
+        .cr_en                  (cr_en                          ), //I
+        .sr_abgc                (sr_abgc                        ), //O
+        .sr_aas                 (sr_aas                         ), //O
+        .sr_srw                 (sr_srw                         ), //O
+        .irq_nas                (irq_nas                        ), //O
+        .irq_tx_err             (irq_tx_err                     ), //O // INST_NEW
+        .cmd                    (cmd[3:0]                       ), //O
+        .cmd_ack                (cmd_ack                        ), //I
+        .phy_rx                 (phy_rx                         ), //I
+        .phy_tx                 (phy_tx                         ), //O
+        .rx_fifo_full           (rx_fifo_full                   ), //I
+        .rx_fifo_wr             (rx_fifo_wr                     ), //O
+        .rx_fifo_din            (rx_fifo_din[7:0]               ), //O
+        .tx_fifo_empty          (tx_fifo_empty                  ), //I
+        .tx_fifo_rd             (tx_fifo_rd                     ), //O
+        .tx_fifo_dout           (tx_fifo_dout[7:0]              ), //I
+        .req_sta                (req_sta                        ), //I
+        .req_sto                (req_sto                        ), //I
+        .rcv_sta                (sta_det                        ), //I
+        .rcv_sto                (sto_det                        )  //I
+    );
+
+i2c_phy u_i2c_phy(/*autoinst*/
+        .clk                    (clk                            ), //I
+        .rstn                   (rstn                           ), //I
+        .ena                    (cr_en                          ), //I
+        .cmd                    (cmd[3:0]                       ), //I
+        .cmd_ack                (cmd_ack                        ), //O
+        .al                     (al                             ), //O
+        .din                    (phy_tx                         ), //I
+        .dout                   (phy_rx                         ), //O
+        .debounct_cnt           (debounct_cnt[13:0]             ), //I
+        .tsusta                 (tsusta[31:0]                   ), //I
+        .thdsta                 (thdsta[31:0]                   ), //I
+        .tsusto                 (tsusto[31:0]                   ), //I
+        .tsudat                 (tsudat[31:0]                   ), //I
+        .thddat                 (thddat[31:0]                   ), //I
+        .tlow                   (tlow[31:0]                     ), //I
+        .thigh                  (thigh[31:0]                    ), //I
+        .tbuf                   (tbuf[31:0]                     ), //I
+        .scl_gauge_en           (scl_gauge_en                   ), //I
+        .cr_msms                (cr_msms                        ), //I
+        .sta_det                (sta_det                        ), //O
+        .sto_det                (sto_det                        ), //O
         .busy                   (busy                           ), //O
         .scl_rising             (scl_rising                     ), //O
         .scl_faling             (scl_faling                     ), //O
-        .scl_o                  (scl_o                          ), //I
-        .scl_i                  (scl_i                          ), //O
-        .sda_o                  (sda_o                          ), //I
-        .sda_i                  (sda_i                          )  //O
-    );
-
-
-i2c_slv u_i2c_slv(/*autoinst*/
-        .clk                    (clk                            ), //I
-        .rstn                   (rstn                           ), //I
-        .address                (slv_adr[6:0]                   ), //I
-        .cr_en                  (cr_en                          ), //I
-        .cr_gcen                (cr_gcen                        ), //I
-        .cr_txak                (cr_txak                        ), //I
-        .sr_aas                 (sr_aas                         ), //O
-        .sr_abgc                (sr_abgc                        ), //O
-        .sr_srw                 (sr_srw                         ), //O
-        .sr_bb                  (sr_bb                          ), //O
-        .irq_nas                (irq_nas                        ), //O
-        .irq_tx_empty           (irq_tx_empty                   ), //O
-        .irq_tx_done            (irq_tx_done                    ), //O
-        .irq_rx_err             (irq_rx_err                     ), //O
-        .tx_empty               (tx_fifo_empty                  ), //I
-        .tx_rd                  (slv_tx_rd                      ), //O
-        .tx_dat                 (slv_tx_dat[7:0]                ), //I
-        .rx_full                (rx_fifo_full                   ), //I
-        .rx_wr                  (slv_rx_wr                      ), //O
-        .rx_dat                 (slv_rx_dat[7:0]                ), //O
-        .sta                    (sta                            ), //I
-        .sto                    (sto                            ), //I
-        .scl_rising             (scl_rising                     ), //I
-        .scl_faling             (scl_faling                     ), //I
-        .sda_o                  (sda_o                          ), //O
-        .sda_i                  (sda_i                          ), //I
-        .scl_o                  (scl_o                          ), //O
-        .scl_i                  (scl_i                          )  //I
+        .scl                    (scl                            ), //IO
+        .sda                    (sda                            )  //IO
     );
 
 
