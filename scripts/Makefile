@@ -12,7 +12,7 @@ COMP_OPTS+=-sverilog
 COMP_OPTS+=-timescale=1ns/1ps 
 
 VERDI_OPT = +incdir+${DIR}/../testbench
-VERDI_OPT+= +define+FOR_SIM
+VERDI_OPT+= +define+FOR_SIM+USE_DUT
 
 vcs_opts=-full64 -debug_all -ucli  -licqueue -l elaborate.log -P ${VERDI_HOME}/share/PLI/VCS/linux64/novas.tab ${VERDI_HOME}/share/PLI/VCS/linux64/pli.a -Mupdate -j2 +rad +lint=TFIPC-L +neg_tchk
 #vcs_opts+=-sdf typ:dwc_ahsata_u0:../fpga_proj/dwc_ahsata_synth/dwc_ahsata.sdf

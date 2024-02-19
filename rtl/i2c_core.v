@@ -15,7 +15,7 @@ module i2c_core(
     input           rx_fifo_rd,
     input   [7:0]   rx_fifo_dout,
 
-    input      [13:0]   debounct_cnt,
+    input      [13:0]   debounce_cnt,
     input      [31:0]   tsusta,
     input      [31:0]   thdsta,
     input      [31:0]   tsusto,
@@ -43,7 +43,7 @@ module i2c_core(
     wire                        rx_fifo_pfull                   ;
     //Define instance wires here
     wire                        tx_fifo_rd                      ;
-    wire [7:0]                  tx_fifo_dout                    ;
+    wire [9:0]                  tx_fifo_dout                    ;
     wire                        tx_fifo_empty                   ;
     wire                        tx_fifo_full                    ;
     wire                        rx_fifo_empty                   ;
@@ -58,17 +58,17 @@ module i2c_core(
     wire                        sr_aas                          ;
     wire                        sr_srw                          ;
     wire                        irq_nas                         ;
-    wire                        irq_tx_err                      ; // WIRE_NEW
+    wire                        irq_tx_err                      ;
     wire [3:0]                  cmd                             ;
     wire                        cmd_ack                         ;
     wire                        phy_rx                          ;
     wire                        phy_tx                          ;
+    wire                        scl_gauge_en                    ;
     wire                        req_sta                         ;
     wire                        req_sto                         ;
     wire                        sta_det                         ;
     wire                        sto_det                         ;
     wire                        al                              ;
-    wire                        scl_gauge_en                    ;
     wire                        busy                            ;
     wire                        scl_rising                      ;
     wire                        scl_faling                      ;
@@ -79,7 +79,7 @@ module i2c_core(
 
 assign sr_bb = busy;
 
-assign rx_fifo_pfull = (rx_fifo_ocy[4:0] == rx_fifo_pirq[4:0]) && |rx_fifo_pirq[4:0];
+assign rx_fifo_pfull = (rx_fifo_ocy[4:0] == rx_fifo_pirq[4:0]) && !rx_fifo_empty;
 
 assign {
     cr_gcen,
@@ -113,15 +113,17 @@ assign irq_req = {
 
 
 sync_fifo#(.DW(10), .DEPTH(16)) u_tx_fifo (/*autoinst*/
-        .clk                    (clk                            ), //input
-        .rstn                   (rstn && (!cr_txfifo_rst)       ), //input
-        .rd                     (tx_fifo_rd                     ), //input
-        .dout                   (tx_fifo_dout[9:0]              ), //output
-        .empty                  (tx_fifo_empty                  ), //output
-        .wr                     (tx_fifo_wr                     ), //input
-        .din                    (tx_fifo_din[9:0]               ), //input
-        .full                   (tx_fifo_full                   ), //output
-        .usedw                  (tx_fifo_ocy[4:0]               )  //output // INST_NEW
+        .clk                    (clk                            ), //I
+        .rstn                   (rstn && (!cr_txfifo_rst)       ), //I
+        .rd                     (tx_fifo_rd                     ), //I
+        .dout                   (tx_fifo_dout[9:0]              ), //O
+        .empty                  (tx_fifo_empty                  ), //O
+        .wr                     (tx_fifo_wr                     ), //I
+        .din                    (tx_fifo_din[9:0]               ), //I
+        .full                   (tx_fifo_full                   ), //O
+        .usedw                  (tx_fifo_ocy[4:0]               )  //O
+        //INST_DEL: Port DW has been deleted.
+        //INST_DEL: Port DEPTH has been deleted.
     );
 
 
@@ -150,17 +152,18 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .sr_aas                 (sr_aas                         ), //O
         .sr_srw                 (sr_srw                         ), //O
         .irq_nas                (irq_nas                        ), //O
-        .irq_tx_err             (irq_tx_err                     ), //O // INST_NEW
+        .irq_tx_err             (irq_tx_err                     ), //O
         .cmd                    (cmd[3:0]                       ), //O
         .cmd_ack                (cmd_ack                        ), //I
         .phy_rx                 (phy_rx                         ), //I
         .phy_tx                 (phy_tx                         ), //O
-        .rx_fifo_full           (rx_fifo_full                   ), //I
+        .rx_fifo_full           (rx_fifo_pfull                  ), //I
         .rx_fifo_wr             (rx_fifo_wr                     ), //O
         .rx_fifo_din            (rx_fifo_din[7:0]               ), //O
         .tx_fifo_empty          (tx_fifo_empty                  ), //I
         .tx_fifo_rd             (tx_fifo_rd                     ), //O
-        .tx_fifo_dout           (tx_fifo_dout[7:0]              ), //I
+        .tx_fifo_dout           (tx_fifo_dout[9:0]              ), //I
+        .scl_gauge_en           (scl_gauge_en                   ), //O // INST_NEW
         .req_sta                (req_sta                        ), //I
         .req_sto                (req_sto                        ), //I
         .rcv_sta                (sta_det                        ), //I
@@ -176,7 +179,7 @@ i2c_phy u_i2c_phy(/*autoinst*/
         .al                     (al                             ), //O
         .din                    (phy_tx                         ), //I
         .dout                   (phy_rx                         ), //O
-        .debounct_cnt           (debounct_cnt[13:0]             ), //I
+        .debounce_cnt           (debounce_cnt[13:0]             ), //I
         .tsusta                 (tsusta[31:0]                   ), //I
         .thdsta                 (thdsta[31:0]                   ), //I
         .tsusto                 (tsusto[31:0]                   ), //I
@@ -185,13 +188,13 @@ i2c_phy u_i2c_phy(/*autoinst*/
         .tlow                   (tlow[31:0]                     ), //I
         .thigh                  (thigh[31:0]                    ), //I
         .tbuf                   (tbuf[31:0]                     ), //I
-        .scl_gauge_en           (scl_gauge_en                   ), //I
         .cr_msms                (cr_msms                        ), //I
         .sta_det                (sta_det                        ), //O
         .sto_det                (sto_det                        ), //O
         .busy                   (busy                           ), //O
         .scl_rising             (scl_rising                     ), //O
         .scl_faling             (scl_faling                     ), //O
+        .scl_gauge_en           (scl_gauge_en                   ), //I // INST_NEW
         .scl                    (scl                            ), //IO
         .sda                    (sda                            )  //IO
     );

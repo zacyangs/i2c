@@ -14,7 +14,7 @@ module i2c_core_fsm(
     output reg          sr_aas,
     output reg          sr_srw,
     output reg          irq_nas,// not addressed as slave
-    output              irq_tx_err,
+    output reg          irq_tx_err,
 
     output reg [ 3:0]   cmd,      // command (from byte controller)
     input               cmd_ack,  // command complete acknowledge
@@ -27,6 +27,7 @@ module i2c_core_fsm(
     input               tx_fifo_empty,
     output              tx_fifo_rd,
     input       [7:0]   tx_fifo_dout,
+    output              scl_gauge_en,
 
     input               req_sta,
     input               req_sto,
@@ -79,6 +80,7 @@ localparam [1:0] WSSR = 2'b11;
     wire                        nas_x                           ;
     wire                        adr_ack                         ; // WIRE_NEW
     wire                        shift                           ;
+    wire                        cnt_add;
     wire                        dcnt_done                       ;
     //Define instance wires here
     //End of automatic wire
@@ -90,9 +92,10 @@ localparam [1:0] WSSR = 2'b11;
 // 2'b10 : slave transmitter  (also known as slave read)
 // 2'b11 : slave receiver     (also known as slave write)
 assign work_stat[1:0] = cr_msms ? (cr_tx ? WSMT : WSMR) : (sr_srw ? WSST : WSSR);
+assign scl_gauge_en  = work_stat[1] && cstate == ST_ADDR;
 
 // status & interrupts
-assign aas_set = dcnt_done_r & (sr[7:0] == slv_addr[7:0]);
+assign aas_set = dcnt_done_r & (sr[7:1] == slv_addr[7:1]);
 assign gc_set  = dcnt_done_r & (sr[7:0] == 8'b0);
 
 
@@ -125,10 +128,11 @@ begin
     cmd    = `I2C_CMD_NOP;
     load   = 1'b0;
     phy_tx = 1'b0;
+    irq_tx_err = 1'b0;
     case(cstate)
         ST_IDLE : begin
             if(req_sta) nstate = ST_START;
-            if(rcv_sta) nstate = ST_ADDR;  // high priority
+            if(rcv_sta) begin nstate = ST_ADDR; load = !work_stat[1]; end // high priority
         end
 
         ST_START : begin
@@ -162,7 +166,7 @@ begin
         end
 
         ST_ACK : begin
-            if(adr_ack & work_stat[1] | !adr_ack & !work_stat[0]) begin
+            if(adr_ack & work_stat[1] | !adr_ack & work_stat[0]) begin
                 cmd        = `I2C_CMD_WRITE;
                 irq_tx_err = cmd_ack & phy_tx;
             end else begin
@@ -175,13 +179,25 @@ begin
 
             if(cmd_ack) begin
                 case({adr_ack, work_stat[1:0]})
-                    3'h0, 3'h2, 3'h4, 3'h5 : 
+                    3'h0, 3'h4, 3'h5:
                         if(phy_rx)
                             nstate = ST_STOP; 
                         else if(tx_fifo_empty) 
                             nstate = ST_WAIT; 
-                        else 
+                        else begin
                             nstate = ST_WRITE;
+                            load   = 1;
+                        end
+
+                    3'h2, 3'h6 : 
+                        if(phy_rx)
+                            nstate = ST_IDLE; 
+                        else if(tx_fifo_empty) 
+                            nstate = ST_WAIT; 
+                        else begin
+                            nstate = ST_WRITE;
+                            load   = 1;
+                        end
 
                     3'h1:
                         if(phy_tx | rx_fifo_full)
@@ -189,7 +205,7 @@ begin
                         else 
                             nstate = ST_READ;
 
-                    3'h3, 3'h6, 3'h7 :
+                    3'h3, 3'h7 :
                         if(phy_tx) 
                             nstate = ST_IDLE; 
                         else if(rx_fifo_full) 
@@ -208,8 +224,8 @@ begin
 
         ST_WAIT : begin
             cmd = `I2C_CMD_WAIT;
-            if(wait2read)  nstate = ST_READ; // restore
-            if(wait2write) begin nstate = ST_WRITE ; load = 1'b1; end
+            if(work_stat[0] && !rx_fifo_full)  nstate = ST_READ; // restore
+            if(!work_stat[0] && !tx_fifo_empty) begin nstate = ST_WRITE ; load = 1'b1; end
         end
         default:;
     endcase
@@ -217,39 +233,39 @@ end
 
 assign shift =  (cstate == ST_READ || cstate == ST_WRITE || cstate == ST_ADDR) && cmd_ack;
 // generate counter
-assign dcnt_x = load ? 3'h7 :
-                  shift && (|dcnt) ? dcnt - 1'b1 : 
-                  dcnt;
+assign cnt_clr = dcnt_done;
+assign cnt_add = shift;
+assign dcnt_x  = dcnt_done ? 3'h7 :
+                 cnt_add ? dcnt - 1'b1 : dcnt;
 
 assign dcnt_done = ~(|dcnt) & cmd_ack;
 
 assign tx_fifo_rd = load;
 assign rx_fifo_din = sr[7:0];
 
-assign phy_tx = sr[7];
 
 
 // sequential with async reset
 always@(posedge clk or negedge rstn)
 begin
     if(!rstn) begin
-        cstate  <= ST_IDLE;
-        pstate  <= ST_IDLE;
-        dcnt    <= 3'b0; 
-        rx_fifo_wr <= 1'b0;
+        cstate      <= ST_IDLE;
+        pstate      <= ST_IDLE;
+        dcnt        <= 3'h7; 
+        rx_fifo_wr  <= 1'b0;
         dcnt_done_r <= 1'b0;
-        irq_nas <= 1'b1;
-        sr_aas  <= 1'b0;
-        sr_abgc <= 1'b0;
-        sr_srw  <= 1'b0;
+        irq_nas     <= 1'b1;
+        sr_aas      <= 1'b0;
+        sr_abgc     <= 1'b0;
+        sr_srw      <= 1'b0;
     end
     else begin
         dcnt_done_r <= dcnt_done;
-        rx_fifo_wr <= dcnt_done;
+        rx_fifo_wr <= dcnt_done && (cstate == ST_READ);
         cstate  <= nstate;
         dcnt    <= dcnt_x;
         if(nstate != cstate) pstate <= cstate;
-        if(dcnt_done & (cstate == ST_ADDR)) sr_srw <= phy_rx;
+        if(dcnt_done_r & (pstate == ST_ADDR)) sr_srw <= sr[0];
         irq_nas <= nas_x;
         sr_aas  <= aas_x;
         sr_abgc <= abgc_x;

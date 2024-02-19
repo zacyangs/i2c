@@ -32,7 +32,8 @@ module i2c_reg(
     output reg  [31:0]  tsudat,
     output reg  [31:0]  tbuf,
     output reg  [31:0]  thigh,
-    output reg  [31:0]  tlow
+    output reg  [31:0]  tlow,
+    output reg  [31:0]  thddat
 );
 
 reg         gie = 0;
@@ -70,15 +71,23 @@ begin
         cr          <= 7'b0;
         adr         <= 7'b0;
         ten_adr     <= 3'b0;
-        rx_pirq     <= 5'b0;
+        rx_pirq     <= 5'b1;
         txr         <= 10'b0;
+        tsusta      <= 50;
+        tsusto      <= 50;
+        thdsta      <= 50;
+        tsudat      <= 50;
+        tbuf        <= 50;
+        thigh       <= 50;
+        tlow        <= 50;
+        thddat      <= 50;
     end else if (wr_en) begin
         case (apb_addr[8:0])
             9'h01c : gie        <= apb_wdata[0];
             9'h028 : ier        <= apb_wdata[7:0];
             9'h100 : cr         <= apb_wdata[6:0];
             9'h108 : txr        <= apb_wdata[9:0];
-            9'h110 : adr        <= apb_wdata[7:1];
+            9'h110 : adr        <= apb_wdata[7:0];
             9'h11c : ten_adr    <= apb_wdata[2:0];
             9'h120 : rx_pirq    <= apb_wdata[4:0];
             9'h128 : tsusta     <= apb_wdata[31:0];
@@ -88,6 +97,7 @@ begin
             9'h138 : tbuf       <= apb_wdata[31:0];
             9'h13c : thigh      <= apb_wdata[31:0];
             9'h140 : tlow       <= apb_wdata[31:0];
+            9'h144 : thddat     <= apb_wdata[31:0];
             default: ;
         endcase
     end
@@ -115,6 +125,7 @@ begin
         9'h138: apb_rdata <= tbuf;
         9'h13c: apb_rdata <= thigh;
         9'h140: apb_rdata <= tlow;
+        9'h144: apb_rdata <= thddat;
         default : apb_rdata <= 32'hdeadbeef;
     endcase
 end

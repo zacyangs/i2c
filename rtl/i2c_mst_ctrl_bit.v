@@ -41,6 +41,7 @@ module i2c_mst_ctrl_bit (
     input             rstn,     // asynchronous active low reset
     input             ena,      // core enable signal
 
+    input             msms,     // master slave mode select
     input      [ 3:0] cmd,      // command (from byte controller)
     output            cmd_ack,  // command complete acknowledge
     output reg        al,       // i2c bus arbitration lost
@@ -61,26 +62,27 @@ module i2c_mst_ctrl_bit (
     input             sto_det,
     input             sta_det,
     input             scl_rising,
+    input             scl_falling,
     input             scl_i,    // i2c clock line input
     input             sda_i,    // i2c data line input
     output reg        scl_o,    // i2c clock line output 
     output reg        sda_o     // i2c data line output
 );
 
-    parameter [17:0] idle    = 18'b0_0000_0000_0000_0000;
-    parameter [17:0] start_a = 18'b0_0000_0000_0000_0001;
-    parameter [17:0] start_b = 18'b0_0000_0000_0000_0010;
-    parameter [17:0] start_c = 18'b0_0000_0000_0000_0100;
-    parameter [17:0] stop_a  = 18'b0_0000_0000_0010_0000;
-    parameter [17:0] stop_b  = 18'b0_0000_0000_0100_0000;
-    parameter [17:0] stop_c  = 18'b0_0000_0000_1000_0000;
-    parameter [17:0] rd_a    = 18'b0_0000_0010_0000_0000;
-    parameter [17:0] rd_b    = 18'b0_0000_0100_0000_0000;
-    parameter [17:0] rd_c    = 18'b0_0000_1000_0000_0000;
-    parameter [17:0] wr_a    = 18'b0_0010_0000_0000_0000;
-    parameter [17:0] wr_b    = 18'b0_0100_0000_0000_0000;
-    parameter [17:0] wr_c    = 18'b0_1000_0000_0000_0000;
-    parameter [17:0] hang    = 18'b0_1000_0000_0000_0000;
+    parameter idle    = 4'h0;
+    parameter start_a = 4'h1;
+    parameter start_b = 4'h2;
+    parameter start_c = 4'h3;
+    parameter stop_a  = 4'h4;
+    parameter stop_b  = 4'h5;
+    parameter stop_c  = 4'h6;
+    parameter rd_a    = 4'h7;
+    parameter rd_b    = 4'h8;
+    parameter rd_c    = 4'h9;
+    parameter wr_a    = 4'ha;
+    parameter wr_b    = 4'hb;
+    parameter wr_c    = 4'hc;
+    parameter hang    = 4'hd;
 
 
     parameter TSUSTA = 0;
@@ -113,7 +115,7 @@ module i2c_mst_ctrl_bit (
     wire       wait_tsusto_done;
 
     // state machine variable
-    reg [17:0] c_state; // synopsys enum_state
+    reg [3:0] c_state; 
 
     //
     // module body
@@ -130,9 +132,9 @@ module i2c_mst_ctrl_bit (
     assign cnt_nxt = cnt_clr ? 32'b0 : 
                      slv_wait ? cnt : cnt + 1'b1;
 
-    assign wait_thigh_done  = cnt == thigh;
-    assign wait_tlow_done  = cnt == (tlow[31:1] + tlow[0]);
-    assign wait_tbuf_done  = cnt == (tbuf[31:1] + tlow[0]);
+    assign wait_thigh_done  = cnt >= thigh;
+    assign wait_tlow_done  = cnt >= (tlow[31:1] + tlow[0]);
+    assign wait_tbuf_done  = cnt >= (tbuf[31:1] + tlow[0]);
     assign wait_tsusta_done = cnt == tsusta;
     assign wait_thdsta_done = cnt == thdsta;
     assign wait_tsudat_done = cnt == tsudat;
@@ -201,7 +203,7 @@ module i2c_mst_ctrl_bit (
           cnt     <= 32'b0;
       end
       else if(ena) begin 
-          cnt <= cnt_nxt;
+        cnt <= cnt_nxt;
         case (c_state) // synopsys full_case parallel_case
               // idle state
               idle: begin
@@ -261,15 +263,15 @@ module i2c_mst_ctrl_bit (
 
               // read
               rd_a: begin
-                  scl_o <= 1'b0; // keep SCL low
+                  scl_o <= !msms; // keep SCL low
                   sda_o <= 1'b1; // tri-state SDA
                   if(wait_tlow_done) c_state <= rd_b;
               end
 
               rd_b: begin
-                  scl_o <= 1'b1; // set SCL high
+                  scl_o <= !msms; // set SCL high
                   sda_o <= 1'b1; // keep SDA tri-stated
-                  if(wait_thigh_done) c_state <= rd_c;
+                  if(wait_thigh_done || scl_falling && !msms) c_state <= rd_c;
               end
 
               rd_c: begin

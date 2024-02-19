@@ -10,7 +10,7 @@ module i2c_phy(
     input               din,
     output              dout,
 
-    input      [13:0]   debounct_cnt,
+    input      [13:0]   debounce_cnt,
     input      [31:0]   tsusta,
     input      [31:0]   thdsta,
     input      [31:0]   tsusto,
@@ -19,7 +19,6 @@ module i2c_phy(
     input      [31:0]   tlow,
     input      [31:0]   thigh,
     input      [31:0]   tbuf,
-    input               scl_gauge_en,
     input               cr_msms,
 
     output              sta_det,
@@ -27,6 +26,7 @@ module i2c_phy(
     output              busy,
     output              scl_rising,
     output              scl_faling,
+    input               scl_gauge_en,
 
     inout               scl,
     inout               sda
@@ -41,8 +41,9 @@ module i2c_phy(
     //Start of automatic wire
     //Define assign wires here
     //Define instance wires here
-    wire [31:0]                 thigh_gauge                     ; // WIRE_NEW
-    wire [31:0]                 tlow_gauge                      ; // WIRE_NEW
+    //wire                        scl_gauge_en                    ; // WIRE_NEW
+    wire [31:0]                 thigh_gauge                     ;
+    wire [31:0]                 tlow_gauge                      ;
     wire                        scl_o                           ;
     wire                        scl_i                           ;
     wire                        sda_o                           ;
@@ -54,6 +55,7 @@ module i2c_phy(
 
 assign tlow_mux  = cr_msms ? tlow  : tlow_gauge;
 assign thigh_mux = cr_msms ? thigh : thigh_gauge;
+//assign scl_gauge_en = !cr_msms;
 
 
 i2c_debounce u_i2c_phy_debounce(/*autoinst*/
@@ -80,6 +82,7 @@ i2c_mst_ctrl_bit u_i2c_phy_bit_ctrl(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
         .ena                    (ena                            ), //I
+        .msms                   (cr_msms                        ), //I // INST_NEW
         .cmd                    (cmd[3:0]                       ), //I
         .cmd_ack                (cmd_ack                        ), //O
         .al                     (al                             ), //O
@@ -96,6 +99,7 @@ i2c_mst_ctrl_bit u_i2c_phy_bit_ctrl(/*autoinst*/
         .sto_det                (sto_det                        ), //I
         .sta_det                (sta_det                        ), //I
         .scl_rising             (scl_rising                     ), //I
+        .scl_falling            (scl_faling                     ), //O
         .scl_i                  (scl_i                          ), //I
         .sda_i                  (sda_i                          ), //I
         .scl_o                  (scl_o                          ), //O

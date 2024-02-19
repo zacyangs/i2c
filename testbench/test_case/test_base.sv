@@ -3,8 +3,8 @@ class test_base;
     virtual axi_lite  axi[];
 
     I2C_GIE          gie         ;
-    I2C_ISR          sr          ;
-    I2C_IER          er          ;
+    I2C_ISR          isr         ;
+    I2C_IER          ier         ;
     I2C_SOFTR        softr       ;
     I2C_CR           cr          ;
     I2C_SR           sr          ;
@@ -47,6 +47,13 @@ class test_base;
         softr.fields.RKEY = 'ha;
         softr.fields.rsv0 = 'h0;
         `I2C_REG_WR(intf, `I2C_GIE_ADDR, softr)
+    endtask
+
+    task irq_poll(input int intf, input int irq_bits);
+        do begin
+            `I2C_REG_RD(intf, `I2C_ISR_ADDR, isr.word)
+            $display("Interrupt %0d : %d", irq_bits, isr.word[irq_bits]);
+        end while(!isr.word[irq_bits]);
     endtask
 
 endclass

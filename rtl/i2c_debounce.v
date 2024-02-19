@@ -38,8 +38,8 @@ always@(posedge clk or negedge rstn)
 begin
     if(!rstn) begin
         timing_cnt <= 32'b0;
-        thigh      <= 32'b0;
-        tlow       <= 32'b0;
+        thigh      <= 32'hffff_ffff;
+        tlow       <= 32'hffff_ffff;
     end
     else if(scl_gauge_en) begin
         if(scl_rising || scl_faling)

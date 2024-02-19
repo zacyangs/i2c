@@ -33,19 +33,22 @@ module i2c_top(
     wire [7:0]                  rx_fifo_dout                    ;
     wire [4:0]                  rx_fifo_pirq                    ;
     wire [9:0]                  slv_adr                         ;
-    wire                        srstn                           ; // WIRE_NEW
+    wire                        srstn                           ;
     wire [7:0]                  cr                              ;
     wire [7:0]                  sr                              ;
     wire [7:0]                  irq_req                         ;
-    wire [31:0]                 tsusta                          ; // WIRE_NEW
-    wire [31:0]                 tsusto                          ; // WIRE_NEW
-    wire [31:0]                 thdsta                          ; // WIRE_NEW
-    wire [31:0]                 tsudat                          ; // WIRE_NEW
-    wire [31:0]                 tbuf                            ; // WIRE_NEW
-    wire [31:0]                 thigh                           ; // WIRE_NEW
-    wire [31:0]                 tlow                            ; // WIRE_NEW
-    wire                        sta_det                         ;
-    wire                        sto_det                         ;
+    wire [31:0]                 tsusta                          ;
+    wire [31:0]                 tsusto                          ;
+    wire [31:0]                 thdsta                          ;
+    wire [31:0]                 tsudat                          ;
+    wire [31:0]                 tbuf                            ;
+    wire [31:0]                 thigh                           ;
+    wire [31:0]                 tlow                            ;
+    wire [31:0]                 thddat                          ; // WIRE_NEW
+    wire [13:0]                 debounct_cnt                    ; // WIRE_NEW
+    wire                        cr_msms                         ; // WIRE_NEW
+    //WIRE_DEL: Wire sta_det has been deleted.
+    //WIRE_DEL: Wire sto_det has been deleted.
     //End of automatic wire
     //End of automatic define
 
@@ -69,17 +72,18 @@ i2c_reg u_i2c_reg (/*autoinst*/
         .rx_fifo_rdat           (rx_fifo_dout[7:0]              ), //I
         .rx_fifo_pirq           (rx_fifo_pirq[4:0]              ), //O
         .slv_adr                (slv_adr[9:0]                   ), //O
-        .srstn                  (srstn                          ), //O // INST_NEW
+        .srstn                  (srstn                          ), //O
         .cr                     (cr[6:0]                        ), //O
         .sr                     (sr[7:0]                        ), //I
         .irq_req                (irq_req[7:0]                   ), //I
-        .tsusta                 (tsusta[31:0]                   ), //O // INST_NEW
-        .tsusto                 (tsusto[31:0]                   ), //O // INST_NEW
-        .thdsta                 (thdsta[31:0]                   ), //O // INST_NEW
-        .tsudat                 (tsudat[31:0]                   ), //O // INST_NEW
-        .tbuf                   (tbuf[31:0]                     ), //O // INST_NEW
-        .thigh                  (thigh[31:0]                    ), //O // INST_NEW
-        .tlow                   (tlow[31:0]                     )  //O // INST_NEW
+        .tsusta                 (tsusta[31:0]                   ), //O
+        .tsusto                 (tsusto[31:0]                   ), //O
+        .thdsta                 (thdsta[31:0]                   ), //O
+        .tsudat                 (tsudat[31:0]                   ), //O
+        .tbuf                   (tbuf[31:0]                     ), //O
+        .thigh                  (thigh[31:0]                    ), //O
+        .tlow                   (tlow[31:0]                     ), //O
+        .thddat                 (thddat[31:0]                   )  //O // INST_NEW
     );
 
 i2c_core u_i2c_core(/*autoinst*/
@@ -96,7 +100,7 @@ i2c_core u_i2c_core(/*autoinst*/
         .tx_fifo_din            (tx_fifo_din[9:0]               ), //I // INST_NEW
         .rx_fifo_rd             (rx_fifo_rd                     ), //I
         .rx_fifo_dout           (rx_fifo_dout[7:0]              ), //I // INST_NEW
-        .debounct_cnt           (debounct_cnt[13:0]             ), //I // INST_NEW
+        .debounce_cnt           ('h10             ), //I // INST_NEW
         .tsusta                 (tsusta[31:0]                   ), //I // INST_NEW
         .thdsta                 (thdsta[31:0]                   ), //I // INST_NEW
         .tsusto                 (tsusto[31:0]                   ), //I // INST_NEW
