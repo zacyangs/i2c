@@ -59,6 +59,7 @@ localparam [1:0] WSSR = 2'b11;
     reg  [2:0]  dcnt;
     reg  [7:0]  sr;
     wire [2:0]  dcnt_x;
+    reg         cr_txak_hold;
 /*autodef*/
     //Start of automatic define
     //Start of automatic reg
@@ -175,7 +176,7 @@ begin
             end
 
             
-            phy_tx = adr_ack & !(sr_aas | sr_abgc) | cr_txak;
+            phy_tx = adr_ack & !(sr_aas | sr_abgc) | cr_txak_hold;
 
             if(cmd_ack) begin
                 case({adr_ack, work_stat[1:0]})
@@ -258,6 +259,7 @@ begin
         sr_aas      <= 1'b0;
         sr_abgc     <= 1'b0;
         sr_srw      <= 1'b0;
+        cr_txak_hold<= 1'b0;
     end
     else begin
         dcnt_done_r <= dcnt_done;
@@ -269,6 +271,9 @@ begin
         irq_nas <= nas_x;
         sr_aas  <= aas_x;
         sr_abgc <= abgc_x;
+
+        if(dcnt_done && (cstate == ST_READ))
+            cr_txak_hold <= cr_txak;
     end
 end
 

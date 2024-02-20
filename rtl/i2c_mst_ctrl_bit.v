@@ -115,19 +115,12 @@ module i2c_mst_ctrl_bit (
     wire       wait_tsusto_done;
 
     // state machine variable
-    reg [3:0] c_state; 
+    reg [3:0] c_state, state_r; 
 
     //
     // module body
     //    
-    assign cnt_clr = wait_thigh_done & (c_state == rd_b | c_state == wr_b)|
-                     wait_tlow_done & (c_state == start_c | c_state == rd_a | c_state == rd_c)|
-                     wait_tbuf_done & (c_state == stop_c)|
-                     wait_tsusta_done &(c_state == start_a)|
-                     wait_thdsta_done &(c_state == start_b)|
-                     wait_tsudat_done &(c_state == stop_a | c_state == wr_a)|
-                     wait_thddat_done &(c_state == wr_c)|
-                     wait_tsusto_done &(c_state == stop_b);
+    assign cnt_clr = c_state != state_r;
 
     assign cnt_nxt = cnt_clr ? 32'b0 : 
                      slv_wait ? cnt : cnt + 1'b1;
@@ -143,7 +136,7 @@ module i2c_mst_ctrl_bit (
 
     assign cmd_ack = c_state == start_c & wait_tlow_done |
                      c_state == stop_c  & wait_tbuf_done |
-                     c_state == rd_c    & wait_tlow_done |
+                     c_state == rd_c    & (wait_tlow_done || !msms) |
                      c_state == wr_c    & wait_thddat_done;
 
     // whenever the slave is not ready it can delay the cycle by pulling SCL low
@@ -184,8 +177,10 @@ module i2c_mst_ctrl_bit (
 
 
     // generate dout signal (store SDA on rising edge of SCL)
-    always @(posedge clk)
+    always @(posedge clk) begin
       if (scl_rising) dout <= sda_i;
+      state_r <= c_state;
+    end
 
 
     // generate statemachine
@@ -265,19 +260,19 @@ module i2c_mst_ctrl_bit (
               rd_a: begin
                   scl_o <= !msms; // keep SCL low
                   sda_o <= 1'b1; // tri-state SDA
-                  if(wait_tlow_done) c_state <= rd_b;
+                  if(wait_tlow_done && msms || scl_rising && !msms) c_state <= rd_b;
               end
 
               rd_b: begin
-                  scl_o <= !msms; // set SCL high
+                  scl_o <= 1'b1; // set SCL high
                   sda_o <= 1'b1; // keep SDA tri-stated
-                  if(wait_thigh_done || scl_falling && !msms) c_state <= rd_c;
+                  if(wait_thigh_done && msms || scl_falling && !msms) c_state <= rd_c;
               end
 
               rd_c: begin
-                  scl_o <= 1'b0; // keep SCL high
+                  scl_o <= !msms; // keep SCL high
                   sda_o <= 1'b1; // keep SDA tri-stated
-                  if(wait_tlow_done) c_state <= idle;
+                  if(wait_tlow_done || !msms) c_state <= idle;
               end
 
               // write
@@ -290,11 +285,11 @@ module i2c_mst_ctrl_bit (
               wr_b: begin
                   scl_o <= 1'b1; // set SCL high
                   sda_o <= din;  // keep SDA
-                  if(wait_thigh_done) c_state <= wr_c;
+                  if(wait_thigh_done && msms || scl_falling && !msms) c_state <= wr_c;
               end
 
               wr_c: begin
-                  scl_o <= 1'b0; // keep SCL high
+                  scl_o <= !msms; // keep SCL high
                   sda_o <= din;
                   if(wait_thddat_done) c_state <= idle;
               end

@@ -38,7 +38,8 @@ class test_slv extends test_base;
 
         irq_poll(0, 3);
         tmp = 0;
-        apb.wr(`I2C_CR_ADDR, 51);
+        apb.wr(`I2C_CR_ADDR, 'h51);
+        apb.wr(`I2C_ISR_ADDR, 'h70);
         apb.rd(`I2C_RX_FIFO_ADDR, tmp, 1);
     endtask
 
