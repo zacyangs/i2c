@@ -1,6 +1,7 @@
 class test_base;
     virtual apb apb;
     virtual axi_lite  axi[];
+    virtual interrupt irq;
 
     I2C_GIE          gie         ;
     I2C_ISR          isr         ;
@@ -23,9 +24,10 @@ class test_base;
     I2C_THIGH        thigh       ;
     I2C_TLOW         tlow        ;
 
-    function new (virtual apb apb, virtual axi_lite  axi[]);
+    function new (virtual apb apb, virtual axi_lite  axi[], virtual interrupt irq);
         this.apb = apb;
         this.axi = axi;
+        this.irq = irq;
     endfunction
 
     virtual task run(); endtask
@@ -52,8 +54,16 @@ class test_base;
     task irq_poll(input int intf, input int irq_bits);
         do begin
             `I2C_REG_RD(intf, `I2C_ISR_ADDR, isr.word)
-            $display("Interrupt %0d : %d", irq_bits, isr.word[irq_bits]);
         end while(!isr.word[irq_bits]);
     endtask
 
+    task read_fifo(intf);
+        int dat, cnt;
+        `I2C_REG_RD(intf, `I2C_RX_FIFO_OCY_ADDR, cnt);
+        while(cnt) begin
+            `I2C_REG_RD(intf, `I2C_RX_FIFO_ADDR, dat);
+            $display("[TEST_BASE] rx fifo read %0h", dat);
+            cnt--;
+        end
+    endtask
 endclass

@@ -45,6 +45,7 @@ module i2c_mst_ctrl_bit (
     input      [ 3:0] cmd,      // command (from byte controller)
     output            cmd_ack,  // command complete acknowledge
     output reg        al,       // i2c bus arbitration lost
+    output reg        rsta_det = 0,
 
     input             din,
     output reg        dout,
@@ -69,20 +70,21 @@ module i2c_mst_ctrl_bit (
     output reg        sda_o     // i2c data line output
 );
 
-    parameter idle    = 4'h0;
-    parameter start_a = 4'h1;
-    parameter start_b = 4'h2;
-    parameter start_c = 4'h3;
-    parameter stop_a  = 4'h4;
-    parameter stop_b  = 4'h5;
-    parameter stop_c  = 4'h6;
-    parameter rd_a    = 4'h7;
-    parameter rd_b    = 4'h8;
-    parameter rd_c    = 4'h9;
-    parameter wr_a    = 4'ha;
-    parameter wr_b    = 4'hb;
-    parameter wr_c    = 4'hc;
-    parameter hang    = 4'hd;
+    localparam idle    = 4'd1;
+    localparam start_a = 4'd2;
+    localparam start_b = 4'd3;
+    localparam start_c = 4'd4;
+    localparam start_d = 4'd5;
+    localparam stop_a  = 4'd6;
+    localparam stop_b  = 4'd7;
+    localparam stop_c  = 4'd8;
+    localparam rd_a    = 4'd9;
+    localparam rd_b    = 4'd10;
+    localparam rd_c    = 4'd11;
+    localparam wr_a    = 4'd12;
+    localparam wr_b    = 4'd13;
+    localparam wr_c    = 4'd14;
+    localparam hang    = 4'd15;
 
 
     parameter TSUSTA = 0;
@@ -113,14 +115,16 @@ module i2c_mst_ctrl_bit (
     wire       wait_tsudat_done;
     wire       wait_thddat_done;
     wire       wait_tsusto_done;
+    reg       scl_x;
+    reg       sda_x;
 
     // state machine variable
-    reg [3:0] c_state, state_r; 
+    reg [3:0] cstate, nstate; 
 
     //
     // module body
     //    
-    assign cnt_clr = c_state != state_r;
+    assign cnt_clr = cstate != nstate;
 
     assign cnt_nxt = cnt_clr ? 32'b0 : 
                      slv_wait ? cnt : cnt + 1'b1;
@@ -134,15 +138,15 @@ module i2c_mst_ctrl_bit (
     assign wait_thddat_done = cnt == thddat;
     assign wait_tsusto_done = cnt == tsusto;
 
-    assign cmd_ack = c_state == start_c & wait_tlow_done |
-                     c_state == stop_c  & wait_tbuf_done |
-                     c_state == rd_c    & (wait_tlow_done || !msms) |
-                     c_state == wr_c    & wait_thddat_done;
+    assign cmd_ack = cstate == start_d & wait_tlow_done |
+                     cstate == stop_c  & wait_tbuf_done |
+                     cstate == rd_c    & (wait_tlow_done || !msms) |
+                     cstate == wr_c    & wait_thddat_done;
 
     // whenever the slave is not ready it can delay the cycle by pulling SCL low
     // delay scl_o  
     always @(posedge clk)
-      dscl_o   <= scl_o  ;
+      dscl_o   <= #10 scl_o  ;
 
     // slv_wait is asserted when master wants to drive SCL high, but the slave pulls it low
     // slv_wait remains asserted until the slave releases SCL
@@ -151,8 +155,8 @@ module i2c_mst_ctrl_bit (
     assign slv_wait_clr = slv_wait & scl_i;
 
     always @(posedge clk or negedge rstn)
-      if (!rstn) slv_wait <= 1'b0;
-      else       slv_wait <= (slv_wait & ~slv_wait_clr) | slv_wait_set ;
+      if (!rstn) slv_wait <= #10 1'b0;
+      else       slv_wait <= #10 (slv_wait & ~slv_wait_clr) | slv_wait_set ;
 
     // master drives SCL high, but another master pulls it low
     // master start counting down its low cycle now (clock synchronization)
@@ -164,142 +168,159 @@ module i2c_mst_ctrl_bit (
     reg cmd_stop;
     always @(posedge clk or negedge rstn)
       if (~rstn)
-          cmd_stop <= 1'b0;
-      else if (c_state == idle)
-          cmd_stop <= cmd == `I2C_CMD_STOP;
+          cmd_stop <= #10 1'b0;
+      else if (cstate == idle)
+          cmd_stop <= #10 cmd == `I2C_CMD_STOP;
 
-    assign sda_chk = c_state == wr_b && wait_thigh_done;
+    assign sda_chk = cstate == wr_b && wait_thigh_done;
     always @(posedge clk or negedge rstn)
       if (~rstn)
-          al <= 1'b0;
+          al <= #10 1'b0;
       else
-          al <= (sda_chk & ~sda_i & sda_o  ) | (|c_state & sto_det & ~cmd_stop);
+          al <= #10 (sda_chk & ~sda_i & sda_o  ) | (|cstate & sto_det & ~cmd_stop);
 
 
     // generate dout signal (store SDA on rising edge of SCL)
     always @(posedge clk) begin
-      if (scl_rising) dout <= sda_i;
-      state_r <= c_state;
+      if (scl_rising) dout <= #10 sda_i;
+      if (scl_falling && (dout != sda_i) && cstate == rd_b) 
+          rsta_det <= 1'b1;
+      else if(cmd_ack)
+          rsta_det <= 1'b0;
     end
 
 
     // generate statemachine
     always @(posedge clk or negedge rstn)
       if (!rstn) begin
-          c_state <= idle;
-          scl_o   <= 1'b1;
-          sda_o   <= 1'b1;
-          cnt     <= 32'b0;
+          cstate <= #10 idle;
+          scl_o   <= #10 1'b1;
+          sda_o   <= #10 1'b1;
+          cnt     <= #10 32'b0;
       end
       else if (al) begin
-          c_state <= idle;
-          scl_o   <= 1'b1;
-          sda_o   <= 1'b1;
-          cnt     <= 32'b0;
+          cstate <= #10 idle;
+          scl_o   <= #10 1'b1;
+          sda_o   <= #10 1'b1;
+          cnt     <= #10 32'b0;
       end
       else if(ena) begin 
-        cnt <= cnt_nxt;
-        case (c_state) // synopsys full_case parallel_case
+        cnt     <= #10 cnt_nxt;
+        cstate  <= #10 nstate;
+        scl_o   <= #10 scl_x;
+        sda_o   <= #10 sda_x;
+      end
+
+    always@(*) if(ena) begin
+        nstate = cstate;
+        case (cstate) // synopsys full_case parallel_case
               // idle state
               idle: begin
                   case (cmd) // synopsys full_case parallel_case
-                       `I2C_CMD_START: c_state <= start_a;
-                       `I2C_CMD_STOP:  c_state <= stop_a; 
-                       `I2C_CMD_WRITE: c_state <= wr_a;
-                       `I2C_CMD_READ:  c_state <= rd_a;
-                       `I2C_CMD_WAIT:  c_state <= hang;
-                       default:        c_state <= idle;
+                       `I2C_CMD_START: nstate = start_a;
+                       `I2C_CMD_STOP:  nstate = stop_a; 
+                       `I2C_CMD_WRITE: nstate = wr_a;
+                       `I2C_CMD_READ:  nstate = rd_a;
+                       `I2C_CMD_WAIT:  nstate = hang;
+                       default:        nstate = idle;
                   endcase
 
-                  scl_o   <= scl_o  ; // keep SCL in same state
-                  sda_o   <= sda_o  ; // keep SDA in same state
+                  scl_x   = scl_o  ; // keep SCL in same state
+                  sda_x   = sda_o  ; // keep SDA in same state
               end
 
               // start
-              start_a: begin
-                  scl_o <= 1'b1;
-                  sda_o <= 1'b1;
 
-                  if(wait_tsusta_done) c_state <= start_b;
+              start_a: begin
+                  scl_x = scl_o; 
+                  sda_x = 1'b1; 
+                  if(wait_tlow_done) nstate = start_b;
               end
 
               start_b: begin
-                  scl_o <= 1'b1;
-                  sda_o <= 1'b0;
+                  scl_x = 1'b1;
+                  sda_x = 1'b1;
 
-                  if(wait_thdsta_done) c_state <= start_c;
+                  if(wait_tsusta_done) nstate = start_c;
               end
 
               start_c: begin
-                  scl_o <= 1'b0; 
-                  sda_o <= 1'b0; 
-                  if(wait_tlow_done) c_state <= idle;
+                  scl_x = 1'b1;
+                  sda_x = 1'b0;
+
+                  if(wait_thdsta_done) nstate = start_d;
+              end
+
+              start_d: begin
+                  scl_x = 1'b0; 
+                  sda_x = 1'b0; 
+                  if(wait_tlow_done) nstate = idle;
               end
 
               // stop
               stop_a: begin
-                  scl_o <= 1'b0; // keep SCL low
-                  sda_o <= 1'b0; // set SDA low
+                  scl_x = 1'b0; // keep SCL low
+                  sda_x = 1'b0; // set SDA low
 
-                  if(wait_tsudat_done) c_state <= stop_b;
+                  if(wait_tsudat_done) nstate = stop_b;
               end
 
               stop_b: begin
-                  scl_o <= 1'b1; // set SCL high
-                  sda_o <= 1'b0; // keep SDA low
-                  if(wait_tsusto_done) c_state <= stop_c;
+                  scl_x = 1'b1; // set SCL high
+                  sda_x = 1'b0; // keep SDA low
+                  if(wait_tsusto_done) nstate = stop_c;
               end
 
               stop_c: begin
-                  scl_o <= 1'b1; // keep SCL high
-                  sda_o <= 1'b1; // keep SDA low
-                  if(wait_tbuf_done) c_state <= idle;
+                  scl_x = 1'b1; // keep SCL high
+                  sda_x = 1'b1; // keep SDA low
+                  if(wait_tbuf_done) nstate = idle;
               end
 
               // read
               rd_a: begin
-                  scl_o <= !msms; // keep SCL low
-                  sda_o <= 1'b1; // tri-state SDA
-                  if(wait_tlow_done && msms || scl_rising && !msms) c_state <= rd_b;
+                  scl_x = !msms; // keep SCL low
+                  sda_x = 1'b1; // tri-state SDA
+                  if(wait_tlow_done && msms || scl_rising && !msms) nstate = rd_b;
               end
 
               rd_b: begin
-                  scl_o <= 1'b1; // set SCL high
-                  sda_o <= 1'b1; // keep SDA tri-stated
-                  if(wait_thigh_done && msms || scl_falling && !msms) c_state <= rd_c;
+                  scl_x = 1'b1; // set SCL high
+                  sda_x = 1'b1; // keep SDA tri-stated
+                  if(wait_thigh_done && msms || scl_falling && !msms) nstate = rd_c;
               end
 
               rd_c: begin
-                  scl_o <= !msms; // keep SCL high
-                  sda_o <= 1'b1; // keep SDA tri-stated
-                  if(wait_tlow_done || !msms) c_state <= idle;
+                  scl_x = !msms; // keep SCL high
+                  sda_x = 1'b1; // keep SDA tri-stated
+                  if(wait_tlow_done || !msms) nstate = idle;
               end
 
               // write
               wr_a: begin
-                  scl_o <= 1'b0; // keep SCL low
-                  sda_o <= din;  // set SDA
-                  if(wait_tsudat_done) c_state <= wr_b;
+                  scl_x = 1'b0; // keep SCL low
+                  sda_x = din;  // set SDA
+                  if(wait_tsudat_done) nstate = wr_b;
               end
 
               wr_b: begin
-                  scl_o <= 1'b1; // set SCL high
-                  sda_o <= din;  // keep SDA
-                  if(wait_thigh_done && msms || scl_falling && !msms) c_state <= wr_c;
+                  scl_x = 1'b1; // set SCL high
+                  sda_x = din;  // keep SDA
+                  if(wait_thigh_done && msms || scl_falling && !msms) nstate = wr_c;
               end
 
               wr_c: begin
-                  scl_o <= !msms; // keep SCL high
-                  sda_o <= din;
-                  if(wait_thddat_done) c_state <= idle;
+                  scl_x = !msms; // keep SCL high
+                  sda_x = din;
+                  if(wait_thddat_done) nstate = idle;
               end
 
               hang: begin
-                  scl_o <= 1'b0; // keep SCL high
-                  sda_o <= 1'b0;
-                  if(cmd != `I2C_CMD_WAIT) c_state <= idle;
+                  scl_x = 1'b0; // keep SCL high
+                  sda_x = sda_o;
+                  if(cmd != `I2C_CMD_WAIT) nstate = idle;
               end
         endcase
-      end
+    end
 
 endmodule

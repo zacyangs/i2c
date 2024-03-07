@@ -35,6 +35,7 @@ module i2c_top(
     wire [9:0]                  slv_adr                         ;
     wire                        srstn                           ;
     wire [7:0]                  cr                              ;
+    wire [7:0]                  cr_clr                          ; // WIRE_NEW
     wire [7:0]                  sr                              ;
     wire [7:0]                  irq_req                         ;
     wire [31:0]                 tsusta                          ;
@@ -44,11 +45,9 @@ module i2c_top(
     wire [31:0]                 tbuf                            ;
     wire [31:0]                 thigh                           ;
     wire [31:0]                 tlow                            ;
-    wire [31:0]                 thddat                          ; // WIRE_NEW
-    wire [13:0]                 debounct_cnt                    ; // WIRE_NEW
-    wire                        cr_msms                         ; // WIRE_NEW
-    //WIRE_DEL: Wire sta_det has been deleted.
-    //WIRE_DEL: Wire sto_det has been deleted.
+    wire [31:0]                 thddat                          ;
+    wire                        cr_msms                         ;
+    //WIRE_DEL: Wire debounct_cnt has been deleted.
     //End of automatic wire
     //End of automatic define
 
@@ -74,6 +73,7 @@ i2c_reg u_i2c_reg (/*autoinst*/
         .slv_adr                (slv_adr[9:0]                   ), //O
         .srstn                  (srstn                          ), //O
         .cr                     (cr[6:0]                        ), //O
+        .cr_clr                 (cr_clr[6:0]                    ), //I // INST_NEW
         .sr                     (sr[7:0]                        ), //I
         .irq_req                (irq_req[7:0]                   ), //I
         .tsusta                 (tsusta[31:0]                   ), //O
@@ -83,7 +83,7 @@ i2c_reg u_i2c_reg (/*autoinst*/
         .tbuf                   (tbuf[31:0]                     ), //O
         .thigh                  (thigh[31:0]                    ), //O
         .tlow                   (tlow[31:0]                     ), //O
-        .thddat                 (thddat[31:0]                   )  //O // INST_NEW
+        .thddat                 (thddat[31:0]                   )  //O
     );
 
 i2c_core u_i2c_core(/*autoinst*/
@@ -91,25 +91,26 @@ i2c_core u_i2c_core(/*autoinst*/
         .rstn                   (rstn                           ), //I
         .slv_adr                (slv_adr[9:0]                   ), //I
         .cr                     (cr[7:0]                        ), //I
+        .cr_clr                 (cr_clr[7:0]                    ), //O // INST_NEW
         .sr                     (sr[7:0]                        ), //O
         .irq_req                (irq_req[7:0]                   ), //O
-        .rx_fifo_pirq           (rx_fifo_pirq[4:0]              ), //I
         .tx_fifo_ocy            (tx_fifo_ocy[4:0]               ), //O
-        .rx_fifo_ocy            (rx_fifo_ocy[4:0]               ), //O
         .tx_fifo_wr             (tx_fifo_wr                     ), //I
-        .tx_fifo_din            (tx_fifo_din[9:0]               ), //I // INST_NEW
+        .tx_fifo_din            (tx_fifo_din[9:0]               ), //I
+        .rx_fifo_pirq           (rx_fifo_pirq[4:0]              ), //I
+        .rx_fifo_ocy            (rx_fifo_ocy[4:0]               ), //O
         .rx_fifo_rd             (rx_fifo_rd                     ), //I
-        .rx_fifo_dout           (rx_fifo_dout[7:0]              ), //I // INST_NEW
-        .debounce_cnt           ('h10             ), //I // INST_NEW
-        .tsusta                 (tsusta[31:0]                   ), //I // INST_NEW
-        .thdsta                 (thdsta[31:0]                   ), //I // INST_NEW
-        .tsusto                 (tsusto[31:0]                   ), //I // INST_NEW
-        .tsudat                 (tsudat[31:0]                   ), //I // INST_NEW
-        .thddat                 (thddat[31:0]                   ), //I // INST_NEW
-        .tlow                   (tlow[31:0]                     ), //I // INST_NEW
-        .thigh                  (thigh[31:0]                    ), //I // INST_NEW
-        .tbuf                   (tbuf[31:0]                     ), //I // INST_NEW
-        .cr_msms                (cr_msms                        ), //I // INST_NEW
+        .rx_fifo_dout           (rx_fifo_dout[7:0]              ), //I
+        .debounce_cnt           ('d10                           ), //I
+        .tsusta                 (tsusta[31:0]                   ), //I
+        .thdsta                 (thdsta[31:0]                   ), //I
+        .tsusto                 (tsusto[31:0]                   ), //I
+        .tsudat                 (tsudat[31:0]                   ), //I
+        .thddat                 (thddat[31:0]                   ), //I
+        .tlow                   (tlow[31:0]                     ), //I
+        .thigh                  (thigh[31:0]                    ), //I
+        .tbuf                   (tbuf[31:0]                     ), //I
+        .cr_msms                (cr_msms                        ), //I
         .sda                    (i2c_sda                        ), //IO
         .scl                    (i2c_scl                        )  //IO
     );

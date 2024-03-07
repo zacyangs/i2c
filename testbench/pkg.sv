@@ -16,6 +16,7 @@ package pkg;
 `include "./test_case/test_base.sv"
 `include "./test_case/test_reg.sv"
 `include "./test_case/test_slv.sv"
+`include "./test_case/test_mst.sv"
 `include "./test_case/test_xilinx.sv"
 `include "factory.sv"
 `include "env.sv"

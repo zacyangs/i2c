@@ -1,5 +1,6 @@
 ~/sim_plat/apb/apb.sv
 ~/sim_plat/axi/axi-lite/axi_lite.sv
+$proj_folder/testbench/interface.sv
 $proj_folder/testbench/pkg.sv
 $proj_folder/testbench/i2c_tb.sv
 $proj_folder/testbench/axi_iic_0_sim_netlist.v

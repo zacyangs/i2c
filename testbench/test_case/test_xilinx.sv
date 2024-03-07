@@ -1,8 +1,8 @@
 class test_xilinx extends test_base;
 
 
-    function new(virtual apb apb, virtual axi_lite axi []);
-        super.new(apb, axi);
+    function new(virtual apb apb, virtual axi_lite axi [], virtual interrupt irq);
+        super.new(apb, axi, irq);
     endfunction
 
     task run();

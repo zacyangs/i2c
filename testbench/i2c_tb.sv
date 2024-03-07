@@ -14,11 +14,14 @@ wire sda0_t ;
 wire scl0_i ;
 wire scl0_o ;
 wire scl0_t ;
+wire   irq_golden;
+wire   irq_dut;
 
 
 logic clk = 0;
 logic rstn = 0;
 apb apb(clk, rstn);
+interrupt irq(clk);
 axi_lite axi0(clk), axi1(clk);
 virtual axi_lite  axi[];
 env env_h;
@@ -44,7 +47,7 @@ i2c_top DUT (
     .apb_wdata              (apb.pwdata[31:0]                ), //input
     .apb_rdata              (apb.prdata[31:0]                ), //output
 
-    .i2c_irq   (),
+    .i2c_irq   (irq.irq_dut),
 
     .i2c_scl   (i2c_scl),
     .i2c_sda   (i2c_sda)
@@ -55,7 +58,7 @@ i2c_top DUT (
 axi_iic_0 u0_axi_iic_1 (
     .s_axi_aclk    (clk),
     .s_axi_aresetn (rstn),
-    .iic2intc_irpt (irq_req),
+    .iic2intc_irpt (),
     .s_axi_awaddr  (axi1.awaddr ),
     .s_axi_awvalid (axi1.awvalid),
     .s_axi_awready (axi1.awready),
@@ -101,7 +104,7 @@ axi_iic_0 u0_axi_iic_1 (
 axi_iic_0 u0_axi_iic_0 (
     .s_axi_aclk    (clk),
     .s_axi_aresetn (rstn),
-    .iic2intc_irpt (irq_req),
+    .iic2intc_irpt (irq.irq_gold),
     .s_axi_awaddr  (axi0.awaddr ),
     .s_axi_awvalid (axi0.awvalid),
     .s_axi_awready (axi0.awready),
@@ -151,7 +154,7 @@ initial begin
     axi = new[2];
     axi[0] = axi0;
     axi[1] = axi1;
-    env_h = new(apb, axi);
+    env_h = new(apb, axi, irq);
     env_h.run();
 end
 

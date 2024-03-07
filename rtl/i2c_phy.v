@@ -6,6 +6,7 @@ module i2c_phy(
     input      [ 3:0]   cmd,
     output              cmd_ack,
     output              al,
+    output              rsta_det,
 
     input               din,
     output              dout,
@@ -82,10 +83,11 @@ i2c_mst_ctrl_bit u_i2c_phy_bit_ctrl(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
         .ena                    (ena                            ), //I
-        .msms                   (cr_msms                        ), //I // INST_NEW
+        .msms                   (cr_msms                        ), //I
         .cmd                    (cmd[3:0]                       ), //I
         .cmd_ack                (cmd_ack                        ), //O
         .al                     (al                             ), //O
+        .rsta_det               (rsta_det                       ), //O // INST_NEW
         .din                    (din                            ), //I
         .dout                   (dout                           ), //O
         .tsusta                 (tsusta[31:0]                   ), //I
@@ -99,7 +101,7 @@ i2c_mst_ctrl_bit u_i2c_phy_bit_ctrl(/*autoinst*/
         .sto_det                (sto_det                        ), //I
         .sta_det                (sta_det                        ), //I
         .scl_rising             (scl_rising                     ), //I
-        .scl_falling            (scl_faling                     ), //O
+        .scl_falling            (scl_faling                     ), //I
         .scl_i                  (scl_i                          ), //I
         .sda_i                  (sda_i                          ), //I
         .scl_o                  (scl_o                          ), //O
