@@ -50,22 +50,22 @@ assign full_nxt = full_set ? 1'b1 :
 always @(posedge clk or negedge rstn) 
 begin
     if(!rstn) begin
-        wptr        <= #10 0;
-        rptr        <= #10 0;
-        empty       <= #10 1'b1;
-        full        <= #10 1'b0;
-        show_ahead  <= #10 1'b0;
+        wptr        <= 0;
+        rptr        <= 0;
+        empty       <= 1'b1;
+        full        <= 1'b0;
+        show_ahead  <= 1'b0;
     end
     else begin
-        wptr        <= #10 wptr_nxt;
-        rptr        <= #10 rptr_nxt;
-        empty       <= #10 empty_nxt;
-        full        <= #10 full_nxt;
+        wptr        <= wptr_nxt;
+        rptr        <= rptr_nxt;
+        empty       <= empty_nxt;
+        full        <= full_nxt;
 
         if(wr && (usedw == {{AW-1{1'b0}}, rd}))
-            show_ahead <= #10 1'b1;
+            show_ahead <= 1'b1;
         else 
-            show_ahead <= #10 1'b0;
+            show_ahead <= 1'b0;
     end
 end
 
@@ -74,21 +74,21 @@ end
 // used words in the fifo
 always @(posedge clk or negedge rstn) begin : proc_usedw
     if(!rstn) begin
-        usedw <= #10 0;
+        usedw <= 0;
     end else if(rd && !wr) begin
-        usedw <= #10 usedw - 1;
+        usedw <= usedw - 1;
     end else if(!rd && wr) begin
-        usedw <= #10 usedw + 1;
+        usedw <= usedw + 1;
     end
 end
 
 always @(posedge clk) begin
     if(wr)
-        mem[wptr] <= #10 din;
+        mem[wptr] <= din;
 
-    q_tmp   <= #10 mem[rptr_nxt];
+    q_tmp   <= mem[rptr_nxt];
 
-    q_cache <= #10 din;
+    q_cache <= din;
 
 end
 

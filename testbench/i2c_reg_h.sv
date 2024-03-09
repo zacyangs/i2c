@@ -49,7 +49,7 @@ typedef union packed{
     logic [31:0] word;
     struct packed {
         logic [31:7] rsv0;
-        logic [6:6] GC_EN;
+        logic [6:6] GCEN;
         logic [5:5] RSTA;
         logic [4:4] TXAK;
         logic [3:3] TX;
@@ -103,16 +103,16 @@ typedef union packed{
 typedef union packed{
     logic [31:0] word;
     struct packed {
-        logic [31:4] rsv0;
-        logic [3:0] occupacy_value;
+        logic [31:5] rsv0;
+        logic [4:0] occupacy_value;
     } fields;
 } I2C_TX_FIFO_OCY;
 `define I2C_RX_FIFO_OCY_ADDR 32'h118
 typedef union packed{
     logic [31:0] word;
     struct packed {
-        logic [31:4] rsv0;
-        logic [3:0] occupacy_value;
+        logic [31:5] rsv0;
+        logic [4:0] occupacy_value;
     } fields;
 } I2C_RX_FIFO_OCY;
 `define I2C_TEN_ADR_ADDR 32'h11c

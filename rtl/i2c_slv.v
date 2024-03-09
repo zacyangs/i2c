@@ -182,31 +182,31 @@ end
 always@(posedge clk or negedge rstn)
 begin
     if(!rstn) begin
-        state[2:0]      <= #10 IDLE;
-        rx_shift[7:0]   <= #10 8'b0;
-        tx_shift[7:0]   <= #10 8'b0;
-        sr_srw          <= #10 1'b0;
-        sr_aas          <= #10 1'b0;
-        sr_abgc         <= #10 1'b0;
-        irq_nas         <= #10 1'b1;
-        rx_wr           <= #10 1'b0;
-        cnt[3:0]        <= #10 3'b0;
-        header_ack      <= #10 1'b0;
+        state[2:0]      <= IDLE;
+        rx_shift[7:0]   <= 8'b0;
+        tx_shift[7:0]   <= 8'b0;
+        sr_srw          <= 1'b0;
+        sr_aas          <= 1'b0;
+        sr_abgc         <= 1'b0;
+        irq_nas         <= 1'b1;
+        rx_wr           <= 1'b0;
+        cnt[3:0]        <= 3'b0;
+        header_ack      <= 1'b0;
     end
     else begin
-        state[2:0]      <= #10 nstate[2:0];
-        rx_shift[7:0]   <= #10 rx_shift_nxt[7:0];
-        tx_shift[7:0]   <= #10 tx_shift_nxt[7:0];
+        state[2:0]      <= nstate[2:0];
+        rx_shift[7:0]   <= rx_shift_nxt[7:0];
+        tx_shift[7:0]   <= tx_shift_nxt[7:0];
         if(srw_set)
-            sr_srw      <= #10 rx_shift_nxt[0];
-        sr_aas          <= #10 aas_nxt;
-        sr_abgc         <= #10 abgc_nxt;
-        irq_nas         <= #10 nas_nxt;
-        rx_wr           <= #10 rx_wr_nxt;
+            sr_srw      <= rx_shift_nxt[0];
+        sr_aas          <= aas_nxt;
+        sr_abgc         <= abgc_nxt;
+        irq_nas         <= nas_nxt;
+        rx_wr           <= rx_wr_nxt;
         if(scl_rising) 
-            cnt[3:0]        <= #10 cnt_nxt[3:0];
+            cnt[3:0]        <= cnt_nxt[3:0];
 
-        header_ack      <= #10 (header_ack || header_ack_set) & (~header_ack_clr);
+        header_ack      <= (header_ack || header_ack_set) & (~header_ack_clr);
     end
 end
 

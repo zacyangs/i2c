@@ -6,6 +6,7 @@ module i2c_core_fsm(
 
     input       [7:0]   slv_addr,
     input               cr_msms,
+    output reg          cr_msms_clr,
     input               cr_tx,
     input               cr_gcen,
     input               cr_txak,
@@ -37,30 +38,21 @@ module i2c_core_fsm(
     input       [4:0]   tx_fifo_ocy,
 
     output              scl_gauge_en,
-    output              msms_int,
+    output reg          msms,
 
     input               rcv_rsta,
     input               rcv_sta,
     input               rcv_sto
 );
 
-localparam ST_IDLE  = 3'h0;
-localparam ST_START = 3'h1;
-localparam ST_ADDR  = 3'h2;
-localparam ST_READ  = 3'h3;
-localparam ST_WRITE = 3'h4;
-localparam ST_ACK   = 3'h5;
-localparam ST_STOP  = 3'h6;
-localparam ST_SUSP  = 3'h7;
-
-localparam [1:0] WSMT = 2'b00;
-localparam [1:0] WSMR = 2'b01;
-localparam [1:0] WSST = 2'b10;
-localparam [1:0] WSSR = 2'b11;
-
-
-
-
+    localparam ST_IDLE  = 3'h0;
+    localparam ST_START = 3'h1;
+    localparam ST_ADDR  = 3'h2;
+    localparam ST_READ  = 3'h3;
+    localparam ST_WRITE = 3'h4;
+    localparam ST_ACK   = 3'h5;
+    localparam ST_STOP  = 3'h6;
+    localparam ST_SUSP  = 3'h7;
 
     reg  [2:0]  cstate;
     reg  [2:0]  nstate;
@@ -68,31 +60,21 @@ localparam [1:0] WSSR = 2'b11;
     reg  [2:0]  dcnt;
     reg  [7:0]  sr;
     wire [2:0]  dcnt_x;
-    reg         cr_txak_hold;
     wire        tx_ack;
     reg         req_sta;
     wire        req_sta_x;
     wire        req_sta_set;
     wire        req_sta_clr;
     wire        mst_tx;
-    reg         dynamic_mode;
-    wire        dynamic_tx;
-    wire        dynamic_rlast;
-    reg  [7:0]  dynamic_rcnt;
-    wire [7:0]  dynamic_rcnt_x;
-    wire        dynamic_sta;
-    wire        dynamic_sto;
-    reg         dynamic_tlast;
-    reg  [1:0]  mode_sel;
-    wire [1:0]  mode_sel_x;
-    wire        mode_sel_clr;
-    wire        mode_sel_set;
     wire        tx_ready;
     wire        rx_ready;
     reg         cr_msms_r;
-    wire        cr_msms_rising;
+    wire        msms_set;
+    wire        msms_clr;
+    wire        msms_x;
     wire        active_abort;
     wire        rsta_req;
+    wire        tx; 
 /*autodef*/
     //Start of automatic define
     //Start of automatic reg
@@ -112,47 +94,37 @@ localparam [1:0] WSSR = 2'b11;
     wire                        nas_x                           ;
     wire                        adr_ack                         ; // WIRE_NEW
     wire                        shift                           ;
-    wire                        cnt_add;
     wire                        dcnt_done                       ;
     //Define instance wires here
     //End of automatic wire
     //End of automatic define
 
-assign msms_int = mode_sel[1];
-assign mst_tx   = dynamic_sta ? dynamic_tx : cr_tx;
 
-// work as master and software request a start condition
-// or working as slave, a recongnised call is received
-assign mode_sel_set = req_sta_set || aas_set;
 
-// working as slave, i2c core needs to clear mode select
-// when receives a start signal 
-assign mode_sel_clr = (rcv_sto || !mode_sel[1] & rcv_sta);
+assign msms_set = cr_msms && !cr_msms_r;
+assign msms_clr = cstate == ST_STOP && cmd_ack;
+assign msms_x   = msms_set ? 1'b1:
+                  msms_clr ? 1'b0:
+                  msms;
 
-// 2'b00 : slave receiver
-// 2'b01 : slave transmitter
-// 2'b10 : master receiver
-// 2'b11 : master transmitter
-assign mode_sel_x   = req_sta_set  ? {1'b1, mst_tx} :
-                      aas_set      ? {1'b0, phy_rx} :
-                      mode_sel_clr ? 2'b00 :
-                      mode_sel;
-assign scl_gauge_en = !mode_sel[1] && cstate == ST_ADDR;
+assign tx       = msms? cr_tx : (aas_set? phy_rx : sr_srw);
+
+assign scl_gauge_en = !msms && cstate == ST_ADDR;
 
 // status & interrupts
-assign gc_set  = !mode_sel[1] & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == 7'b0);
-assign aas_set = !mode_sel[1] & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == slv_addr[7:1]);
+assign gc_set  = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == 7'b0) & cr_gcen;
+assign aas_set = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == slv_addr[7:1]);
 
-assign aas_x   = mode_sel_clr  ? 1'b0 : 
-                 aas_set       ? 1'b1 : 
+assign aas_x   = rcv_sto ? 1'b0 : 
+                 aas_set ? 1'b1 : 
                  sr_aas;
 
-assign abgc_x  = mode_sel_clr  ? 1'b0 :
-                 gc_set        ? 1'b1 :
+assign abgc_x  = rcv_sto  ? 1'b0 :
+                 gc_set   ? 1'b1 :
                  sr_abgc;
 
 assign nas_clr = aas_set | gc_set;
-assign nas_set = mode_sel_clr & (!mode_sel[1]);
+assign nas_set = rcv_sto;
 
 assign nas_x = nas_clr ? 1'b0 : 
                nas_set ? 1'b1 :
@@ -171,17 +143,7 @@ assign irq_tx_empty = (cstate == ST_SUSP) && tx_fifo_empty;
 
 assign adr_ack =  (pstate == ST_ADDR);
 
-assign tx_ack         = dynamic_mode ? dynamic_rlast : cr_txak;
-
-assign dynamic_tx     = !tx_fifo_dout[0];
-assign dynamic_sta    = !tx_fifo_empty && tx_fifo_dout[8];
-assign dynamic_sto    = !tx_fifo_empty && tx_fifo_dout[9];
-assign dynamic_rcnt_x = mode_sel_clr ? 8'b0 : 
-                        dynamic_rcnt + rx_fifo_wr;
-assign dynamic_rlast  = dynamic_sto && !mode_sel[0] &&
-                        (dynamic_rcnt == tx_fifo_dout[7:0] - 1'b1);
-
-assign active_abort   = dynamic_mode ? dynamic_tlast : !cr_msms & (&mode_sel);
+assign active_abort   = !cr_msms & msms & (pstate == ST_WRITE);
 
 // Fsm
 always@(*)
@@ -190,20 +152,24 @@ begin
     cmd    = `I2C_CMD_NOP;
     load   = 1'b0;
     phy_tx = 1'b0;
+    cr_msms_clr = 1'b0;
     //tx_fifo_rd = 1'b0;
     case(cstate)
         ST_IDLE : begin
-            if(req_sta && tx_ready) nstate = ST_START;
-            if(rcv_sta) begin nstate = ST_ADDR;; end // high priority
+            if(msms && tx_ready)
+                nstate = ST_START;
+            else if(rcv_sta)
+                nstate = ST_ADDR;
         end
 
         ST_START : begin
-            cmd = `I2C_CMD_START;
-            if(cmd_ack) begin nstate = ST_ADDR; load = 1'b1; end
+            cmd  = `I2C_CMD_START;
+            load = cmd_ack;
+            if(cmd_ack) nstate = ST_ADDR; 
         end
 
         ST_ADDR : begin
-            if(mode_sel[1]) cmd = `I2C_CMD_WRITE;
+            if(msms) cmd = `I2C_CMD_WRITE;
             else            cmd = `I2C_CMD_READ;
 
             phy_tx = sr[7];
@@ -215,7 +181,7 @@ begin
             cmd = `I2C_CMD_READ;
             if(cmd_ack && rcv_rsta)
                 nstate = ST_ADDR;
-            if(dcnt_done) 
+            else if(dcnt_done) 
                 nstate = ST_ACK;
         end
 
@@ -228,25 +194,25 @@ begin
         end
 
         ST_ACK : begin
-            if(adr_ack & !mode_sel[1] | !adr_ack & !mode_sel[0]) begin
+            if(adr_ack & !msms | !adr_ack & !tx) begin
                 cmd        = `I2C_CMD_WRITE;
             end else begin
                 cmd        = `I2C_CMD_READ;
             end
 
-            phy_tx = adr_ack & !(sr_aas | sr_abgc) | !adr_ack & tx_ack;
+            phy_tx = adr_ack & !(sr_aas | sr_abgc) | !adr_ack & cr_txak;
 
             if(cmd_ack) begin
-                if(dynamic_sta)
-                    nstate = ST_START;
-                else if(phy_rx | active_abort) begin
-                    if(mode_sel[1]) // mst mode
+                if(phy_rx | active_abort) begin
+                    if(msms) // mst mode
                         nstate = ST_STOP;
                     else
                         nstate = ST_IDLE;
                 end
+                else if(cr_rsta)
+                    nstate = ST_START;
                 else begin
-                    if(mode_sel[0]) begin // data tx
+                    if(tx) begin // data tx
                         if(tx_ready)
                             nstate = ST_WRITE;
                         else
@@ -258,8 +224,9 @@ begin
                             nstate = ST_SUSP;
                     end
                 end
-                //tx_fifo_rd = mode_sel[0] & (mode_sel[1] | !adr_ack);
-                load       = !(phy_rx | active_abort) & mode_sel[0] & tx_ready && (!dynamic_sta);
+                //tx_fifo_rd = mode_sel[0] & (msms | !adr_ack);
+                load = !(phy_rx | active_abort | cr_rsta) & tx & tx_ready;
+                cr_msms_clr = phy_rx & tx & msms;
 
 //                case(mode_sel[1:0])
 //                    2'b11: begin
@@ -313,101 +280,82 @@ begin
 
         ST_SUSP : begin
             cmd = `I2C_CMD_WAIT;
-            if(!mode_sel[0] && !rx_fifo_pfull)
-                if(cr_rsta) nstate = ST_START; // restore
-                else        nstate = ST_READ;
-            else if(mode_sel[0] && tx_ready) 
-                if(cr_rsta) nstate = ST_START; // restore
+            if(!tx && !rx_fifo_pfull)
+                if(cr_rsta) 
+                    nstate = ST_START; // restore
+                else
+                    nstate = ST_READ;
+            else if(tx && tx_ready) 
+                if(cr_rsta)
+                    nstate = ST_START; // restore
                 else begin
-                        nstate = ST_WRITE ;
-                        load = 1'b1;
-                    end
+                    nstate = ST_WRITE ;
+                    load = 1'b1;
+                end
         end
         default:;
     endcase
 end
 
-assign cr_rsta_clr = cr_rsta && !tx_fifo_empty;
-
-//assign rsta_req    = dynamic_mode ? dynamic_rsta : cr_rsta;
+assign cr_rsta_clr = cr_rsta && (cstate == ST_START) && cmd_ack;
 
 assign shift =  (cstate == ST_READ || cstate == ST_WRITE || cstate == ST_ADDR) && cmd_ack;
 // generate counter
 assign cnt_clr = dcnt_done || rcv_rsta;
-assign cnt_add = shift;
 assign dcnt_x  = cnt_clr ? 3'h7 :
-                 cnt_add ? dcnt - 1'b1 : dcnt;
+                 shift   ? dcnt - 1'b1 : dcnt;
 
 assign dcnt_done = ~(|dcnt) & cmd_ack;
 
-assign cr_msms_rising = cr_msms & !cr_msms_r;
-assign req_sta_set = cr_msms_rising || dynamic_sta;
+assign req_sta_set = cr_msms & !cr_msms_r;
 assign req_sta_clr = !tx_fifo_empty;
 assign req_sta_x   = req_sta_set ? 1'b1 :
                      req_sta_clr ? 1'b0 :
                      req_sta;
-assign tx_ready      = !tx_fifo_empty;
-assign rx_ready      = rx_fifo_ocy[4:0] < rx_fifo_pirq[4:0];
-assign rx_fifo_wr    = cstate == ST_ACK && cmd_ack &&
-                       pstate == ST_READ;
+
+assign rx_ready      = rx_fifo_ocy[4:0]+1 < rx_fifo_pirq[4:0];
+assign rx_fifo_wr    = cstate == ST_ACK && cmd_ack && pstate == ST_READ;
 assign rx_fifo_din   = sr[7:0];
+assign rx_fifo_pfull = (rx_fifo_ocy[4:0] >= rx_fifo_pirq[4:0]) && |rx_fifo_pirq[4:0];
 
-assign rx_fifo_pfull = (rx_fifo_ocy[4:0] == rx_fifo_pirq[4:0]) && |rx_fifo_pirq[4:0];
+assign tx_ready      = !tx_fifo_empty;
 assign tx_fifo_rd    = load;
-
 
 
 // sequential with async reset
 always@(posedge clk or negedge rstn)
 begin
     if(!rstn) begin
-        cstate      <= #10 ST_IDLE;
-        pstate      <= #10 ST_IDLE;
-        dcnt        <= #10 3'h7; 
-        irq_nas     <= #10 1'b1;
-        sr_aas      <= #10 1'b0;
-        sr_abgc     <= #10 1'b0;
-        sr_srw      <= #10 1'b0;
-        cr_txak_hold<= #10 1'b0;
-        dynamic_mode<= #10 1'b0;
-        req_sta     <= #10 1'b0;
-        dynamic_rcnt[7:0]  <= #10 8'b0;
-        cr_msms_r   <= cr_msms;
-        mode_sel[1:0] <= 2'b00;
-        dynamic_tlast <= 1'b0;
+        cstate          <=ST_IDLE;
+        pstate          <=ST_IDLE;
+        dcnt            <=3'h7; 
+        irq_nas         <=1'b1;
+        sr_aas          <=1'b0;
+        sr_abgc         <=1'b0;
+        sr_srw          <=1'b0;
+        req_sta         <=1'b0;
+        cr_msms_r       <=cr_msms;
+        msms            <=1'b0;
     end
     else begin
-        cstate  <= #10 nstate;
-        dcnt    <= #10 dcnt_x;
-        if(nstate != cstate) pstate <= #10 cstate;
-        if(dcnt_done & cmd_ack & (cstate == ST_ADDR)) sr_srw <= #10 phy_rx;
-        irq_nas <= #10 nas_x;
-        sr_aas  <= #10 aas_x;
-        sr_abgc <= #10 abgc_x;
-        req_sta <= #10 req_sta_x;
-        cr_msms_r <= cr_msms;
-        mode_sel[1:0] <= mode_sel_x[1:0];
-        if(tx_fifo_rd)
-            dynamic_tlast <= tx_fifo_dout[9];
-
-        if(cmd_ack && (cstate == ST_ACK)) begin
-            cr_txak_hold <= #10 cr_txak;
-        end
-        if(dynamic_sta) begin
-            dynamic_mode <= #10 1'b1;
-        end
-        else if(cstate == ST_STOP && cmd_ack) begin
-            dynamic_mode <= #10 1'b0;
-        end
-        dynamic_rcnt[7:0]  <= #10 dynamic_rcnt_x;
+        cstate          <=nstate;
+        dcnt            <=dcnt_x;
+        pstate          <=(nstate == cstate)? pstate : cstate;
+        sr_srw          <=aas_set ? phy_rx : sr_srw;
+        irq_nas         <=nas_x;
+        sr_aas          <=aas_x;
+        sr_abgc         <=abgc_x;
+        req_sta         <=req_sta_x;
+        cr_msms_r       <=cr_msms;
+        msms            <=msms_x;
     end
 end
 
 // sequential without reset
 always @(posedge clk)
 begin
-    if (load)       sr <= #10 tx_fifo_dout[7:0];
-    else if(shift)  sr <= #10 {sr[6:0], phy_rx};
+    if (load)       sr <= tx_fifo_dout[7:0];
+    else if(shift)  sr <= {sr[6:0], phy_rx};
 end
 
 

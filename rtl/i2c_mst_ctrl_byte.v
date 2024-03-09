@@ -108,24 +108,24 @@ module i2c_mst_ctrl_byte (
     // generate shift register
     always @(posedge clk or negedge nReset)
       if (!nReset)
-        sr <= #10 #1 8'h0;
+        sr <= #1 8'h0;
       else if (rst)
-        sr <= #10 #1 8'h0;
+        sr <= #1 8'h0;
       else if (ld)
-        sr <= #10 #1 din;
+        sr <= #1 din;
       else if (shift)
-        sr <= #10 #1 {sr[6:0], core_rxd};
+        sr <= #1 {sr[6:0], core_rxd};
 
     // generate counter
     always @(posedge clk or negedge nReset)
       if (!nReset)
-        dcnt <= #10 #1 3'h0;
+        dcnt <= #1 3'h0;
       else if (rst)
-        dcnt <= #10 #1 3'h0;
+        dcnt <= #1 3'h0;
       else if (ld)
-        dcnt <= #10 #1 3'h7;
+        dcnt <= #1 3'h7;
       else if (shift)
-        dcnt <= #10 #1 dcnt - 3'h1;
+        dcnt <= #1 dcnt - 3'h1;
 
     assign cnt_done = ~(|dcnt);
 
@@ -136,122 +136,122 @@ module i2c_mst_ctrl_byte (
 
     always @(posedge clk or negedge nReset)
       if (!nReset) begin
-            core_cmd <= #10 #1 `I2C_CMD_NOP;
-            core_txd <= #10 #1 1'b0;
-            shift    <= #10 #1 1'b0;
-            ld       <= #10 #1 1'b0;
-            cmd_ack  <= #10 #1 1'b0;
-            c_state  <= #10 #1 ST_IDLE;
-            ack_out  <= #10 #1 1'b0;
+            core_cmd <= #1 `I2C_CMD_NOP;
+            core_txd <= #1 1'b0;
+            shift    <= #1 1'b0;
+            ld       <= #1 1'b0;
+            cmd_ack  <= #1 1'b0;
+            c_state  <= #1 ST_IDLE;
+            ack_out  <= #1 1'b0;
       end
       else if (rst | i2c_al) begin
-           core_cmd <= #10 #1 `I2C_CMD_NOP;
-           core_txd <= #10 #1 1'b0;
-           shift    <= #10 #1 1'b0;
-           ld       <= #10 #1 1'b0;
-           cmd_ack  <= #10 #1 1'b0;
-           c_state  <= #10 #1 ST_IDLE;
-           ack_out  <= #10 #1 1'b0;
+           core_cmd <= #1 `I2C_CMD_NOP;
+           core_txd <= #1 1'b0;
+           shift    <= #1 1'b0;
+           ld       <= #1 1'b0;
+           cmd_ack  <= #1 1'b0;
+           c_state  <= #1 ST_IDLE;
+           ack_out  <= #1 1'b0;
        end
     else begin
           // initially reset all signals
-          core_txd <= #10 #1 sr[7];
-          shift    <= #10 #1 1'b0;
-          ld       <= #10 #1 1'b0;
-          cmd_ack  <= #10 #1 1'b0;
+          core_txd <= #1 sr[7];
+          shift    <= #1 1'b0;
+          ld       <= #1 1'b0;
+          cmd_ack  <= #1 1'b0;
 
           case (c_state) // synopsys full_case parallel_case
             ST_IDLE:
               if (go) begin
                 if (start) begin
-                    c_state  <= #10 #1 ST_START;
-                    core_cmd <= #10 #1 `I2C_CMD_START;
+                    c_state  <= #1 ST_START;
+                    core_cmd <= #1 `I2C_CMD_START;
                 end
                 else if (read) begin
-                    c_state  <= #10 #1 ST_READ;
-                    core_cmd <= #10 #1 `I2C_CMD_READ;
+                    c_state  <= #1 ST_READ;
+                    core_cmd <= #1 `I2C_CMD_READ;
                 end
                 else if (write) begin
-                    c_state  <= #10 #1 ST_WRITE;
-                    core_cmd <= #10 #1 `I2C_CMD_WRITE;
+                    c_state  <= #1 ST_WRITE;
+                    core_cmd <= #1 `I2C_CMD_WRITE;
                 end
                 else begin
-                    c_state  <= #10 #1 ST_STOP;
-                    core_cmd <= #10 #1 `I2C_CMD_STOP;
+                    c_state  <= #1 ST_STOP;
+                    core_cmd <= #1 `I2C_CMD_STOP;
                 end
 
-                ld <= #10 #1 1'b1;
+                ld <= #1 1'b1;
               end
 
             ST_START:
               if (core_ack) begin
                 if (read) begin
-                    c_state  <= #10 #1 ST_READ;
-                    core_cmd <= #10 #1 `I2C_CMD_READ;
+                    c_state  <= #1 ST_READ;
+                    core_cmd <= #1 `I2C_CMD_READ;
                 end 
                 else begin
-                    c_state  <= #10 #1 ST_WRITE;
-                    core_cmd <= #10 #1 `I2C_CMD_WRITE;
+                    c_state  <= #1 ST_WRITE;
+                    core_cmd <= #1 `I2C_CMD_WRITE;
                 end
 
-                ld <= #10 #1 1'b1;
+                ld <= #1 1'b1;
               end
 
             ST_WRITE:
               if (core_ack)
                 if (cnt_done) begin
-                      c_state  <= #10 #1 ST_ACK;
-                      core_cmd <= #10 #1 `I2C_CMD_READ;
+                      c_state  <= #1 ST_ACK;
+                      core_cmd <= #1 `I2C_CMD_READ;
                 end
                 else begin
-                      c_state  <= #10 #1 ST_WRITE;       // stay in same state
-                      core_cmd <= #10 #1 `I2C_CMD_WRITE; // write next bit
-                      shift    <= #10 #1 1'b1;
+                      c_state  <= #1 ST_WRITE;       // stay in same state
+                      core_cmd <= #1 `I2C_CMD_WRITE; // write next bit
+                      shift    <= #1 1'b1;
                 end
 
             ST_READ:
               if (core_ack) begin
                 if (cnt_done) begin
-                      c_state  <= #10 #1 ST_ACK;
-                      core_cmd <= #10 #1 `I2C_CMD_WRITE;
+                      c_state  <= #1 ST_ACK;
+                      core_cmd <= #1 `I2C_CMD_WRITE;
                 end
                 else begin
-                      c_state  <= #10 #1 ST_READ;       // stay in same state
-                      core_cmd <= #10 #1 `I2C_CMD_READ; // read next bit
+                      c_state  <= #1 ST_READ;       // stay in same state
+                      core_cmd <= #1 `I2C_CMD_READ; // read next bit
                 end
 
-                shift    <= #10 #1 1'b1;
-                core_txd <= #10 #1 ack_in;
+                shift    <= #1 1'b1;
+                core_txd <= #1 ack_in;
               end
 
             ST_ACK:
               if (core_ack) begin
                    if (stop) begin
-                         c_state  <= #10 #1 ST_STOP;
-                         core_cmd <= #10 #1 `I2C_CMD_STOP;
+                         c_state  <= #1 ST_STOP;
+                         core_cmd <= #1 `I2C_CMD_STOP;
                    end
                    else begin
-                         c_state  <= #10 #1 ST_IDLE;
-                         core_cmd <= #10 #1 `I2C_CMD_NOP;
+                         c_state  <= #1 ST_IDLE;
+                         core_cmd <= #1 `I2C_CMD_NOP;
 
                          // generate command acknowledge signal
-                         cmd_ack  <= #10 #1 1'b1;
+                         cmd_ack  <= #1 1'b1;
                    end
 
                    // assign ack_out output to bit_controller_rxd (contains last received bit)
-                   ack_out <= #10 #1 core_rxd;
+                   ack_out <= #1 core_rxd;
 
-                   core_txd <= #10 #1 1'b1;
+                   core_txd <= #1 1'b1;
               end else
-                 core_txd <= #10 #1 ack_in;
+                 core_txd <= #1 ack_in;
 
             ST_STOP:
               if (core_ack) begin
-                    c_state  <= #10 #1 ST_IDLE;
-                    core_cmd <= #10 #1 `I2C_CMD_NOP;
+                    c_state  <= #1 ST_IDLE;
+                    core_cmd <= #1 `I2C_CMD_NOP;
 
                     // generate command acknowledge signal
-                    cmd_ack  <= #10 #1 1'b1;
+                    cmd_ack  <= #1 1'b1;
               end
 
           endcase

@@ -35,7 +35,8 @@ module i2c_top(
     wire [9:0]                  slv_adr                         ;
     wire                        srstn                           ;
     wire [7:0]                  cr                              ;
-    wire [7:0]                  cr_clr                          ; // WIRE_NEW
+    wire [7:0]                  cr_clr                          ;
+    wire [6:0]                  cr_set                          ; // WIRE_NEW
     wire [7:0]                  sr                              ;
     wire [7:0]                  irq_req                         ;
     wire [31:0]                 tsusta                          ;
@@ -47,7 +48,6 @@ module i2c_top(
     wire [31:0]                 tlow                            ;
     wire [31:0]                 thddat                          ;
     wire                        cr_msms                         ;
-    //WIRE_DEL: Wire debounct_cnt has been deleted.
     //End of automatic wire
     //End of automatic define
 
@@ -73,7 +73,8 @@ i2c_reg u_i2c_reg (/*autoinst*/
         .slv_adr                (slv_adr[9:0]                   ), //O
         .srstn                  (srstn                          ), //O
         .cr                     (cr[6:0]                        ), //O
-        .cr_clr                 (cr_clr[6:0]                    ), //I // INST_NEW
+        .cr_clr                 (cr_clr[6:0]                    ), //I
+        .cr_set                 (cr_set[6:0]                    ), //I // INST_NEW
         .sr                     (sr[7:0]                        ), //I
         .irq_req                (irq_req[7:0]                   ), //I
         .tsusta                 (tsusta[31:0]                   ), //O
@@ -91,7 +92,8 @@ i2c_core u_i2c_core(/*autoinst*/
         .rstn                   (rstn                           ), //I
         .slv_adr                (slv_adr[9:0]                   ), //I
         .cr                     (cr[7:0]                        ), //I
-        .cr_clr                 (cr_clr[7:0]                    ), //O // INST_NEW
+        .cr_clr                 (cr_clr[7:0]                    ), //O
+        .cr_set                 (cr_set[6:0]                    ), //O // INST_NEW
         .sr                     (sr[7:0]                        ), //O
         .irq_req                (irq_req[7:0]                   ), //O
         .tx_fifo_ocy            (tx_fifo_ocy[4:0]               ), //O

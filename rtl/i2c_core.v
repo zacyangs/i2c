@@ -6,6 +6,7 @@ module i2c_core(
 
     input   [7:0]   cr,
     output  [7:0]   cr_clr,
+    output  [6:0]   cr_set,
     output  [7:0]   sr,
     output  [7:0]   irq_req,
     output  [4:0]   tx_fifo_ocy,
@@ -41,6 +42,12 @@ module i2c_core(
     //Start of automatic wire
     //Define assign wires here
     wire                        sr_bb                           ;
+    wire                        cr_rsta_set                     ; // WIRE_NEW
+    wire                        cr_tx_set                       ; // WIRE_NEW
+    wire                        cr_tx_clr                       ; // WIRE_NEW
+    wire                        cr_txak_set                     ; // WIRE_NEW
+    wire                        cr_txak_clr                     ; // WIRE_NEW
+    wire                        cr_msms_set                     ; // WIRE_NEW
     wire                        cr_msms_clr                     ;
     //Define instance wires here
     wire                        tx_fifo_rd                      ;
@@ -51,10 +58,17 @@ module i2c_core(
     wire                        rx_fifo_wr                      ;
     wire [7:0]                  rx_fifo_din                     ;
     wire                        rx_fifo_full                    ;
+    wire                        cr_en                           ;
+    wire                        dyna_msms_set                   ;
+    wire                        dyna_msms_clr                   ;
+    wire                        dyna_txak_set                   ;
+    wire                        dyna_txak_clr                   ;
+    wire                        dyna_tx_set                     ;
+    wire                        dyna_tx_clr                     ;
+    wire                        dyna_rsta_set                   ;
     wire                        cr_tx                           ;
     wire                        cr_gcen                         ;
     wire                        cr_txak                         ;
-    wire                        cr_en                           ;
     wire                        cr_rsta                         ;
     wire                        cr_rsta_clr                     ;
     wire                        sr_abgc                         ;
@@ -62,18 +76,18 @@ module i2c_core(
     wire                        sr_srw                          ;
     wire                        irq_nas                         ;
     wire                        irq_tx_err                      ;
-    wire                        irq_tx_empty                    ; // WIRE_NEW
+    wire                        irq_tx_empty                    ;
     wire [3:0]                  cmd                             ;
     wire                        cmd_ack                         ;
     wire                        phy_rx                          ;
     wire                        phy_tx                          ;
+    wire                        al                              ;
     wire                        rx_fifo_pfull                   ;
     wire                        scl_gauge_en                    ;
     wire                        msms                            ;
     wire                        rsta_det                        ;
     wire                        sta_det                         ;
     wire                        sto_det                         ;
-    wire                        al                              ;
     wire                        busy                            ;
     wire                        scl_rising                      ;
     wire                        scl_faling                      ;
@@ -97,10 +111,26 @@ assign {
 assign cr_clr = {
     1'b0,
     cr_rsta_clr,
-    2'b0,
+    cr_txak_clr,
+    cr_tx_clr,
     cr_msms_clr, 2'b0};
 
-assign cr_msms_clr = al;
+assign cr_set = {
+    1'b0,
+    cr_rsta_set,
+    cr_txak_set,
+    cr_tx_set,
+    cr_msms_set,
+    2'b0
+    };
+
+assign cr_rsta_set = dyna_rsta_set;
+assign cr_tx_set   = dyna_tx_set;
+assign cr_tx_clr   = dyna_tx_clr;
+assign cr_txak_set = dyna_txak_set;
+assign cr_txak_clr = dyna_txak_clr;
+assign cr_msms_set = dyna_msms_set;
+assign cr_msms_clr = al || dyna_msms_clr || irq_tx_err;
 
 assign sr = {
     tx_fifo_empty,
@@ -151,6 +181,28 @@ sync_fifo #( .DW(8), .DEPTH(16)) u_rx_fifo (/*autoinst*/
         .usedw                  (rx_fifo_ocy[4:0]               )  //O
     );
 
+
+i2c_dynamic_ctrl u_i2c_dynamic_ctrl(/*autoinst*/
+        .clk                    (clk                            ), //I
+        .rstn                   (rstn                           ), //I
+        .cr_en                  (cr_en                          ), //I
+        .cr_msms                (cr_msms                        ), //I
+        .dyna_msms_set          (dyna_msms_set                  ), //O
+        .dyna_msms_clr          (dyna_msms_clr                  ), //O
+        .dyna_txak_set          (dyna_txak_set                  ), //O
+        .dyna_txak_clr          (dyna_txak_clr                  ), //O
+        .dyna_tx_set            (dyna_tx_set                    ), //O
+        .dyna_tx_clr            (dyna_tx_clr                    ), //O
+        .dyna_rsta_set          (dyna_rsta_set                  ), //O
+        .tx_fifo_empty          (tx_fifo_empty                  ), //I
+        .tx_fifo_rd             (tx_fifo_rd                     ), //I
+        .tx_fifo_dout           (tx_fifo_dout[9:0]              ), //I
+        .tx_fifo_wr             (tx_fifo_wr                     ), //I
+        .tx_fifo_din            (tx_fifo_din[9:0]               ), //I
+        .rx_fifo_wr             (rx_fifo_wr                     )  //I
+    );
+
+
 i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
@@ -183,7 +235,7 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .tx_fifo_dout           (tx_fifo_dout[9:0]              ), //I
         .tx_fifo_ocy            (tx_fifo_ocy[4:0]               ), //I
         .scl_gauge_en           (scl_gauge_en                   ), //O
-        .msms_int               (msms                           ), //O
+        .msms                   (msms                           ), //O
         .rcv_rsta               (rsta_det                       ), //I
         .rcv_sta                (sta_det                        ), //I
         .rcv_sto                (sto_det                        )  //I

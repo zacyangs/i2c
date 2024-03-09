@@ -48,7 +48,7 @@ class test_base;
     task reset(intf);
         softr.fields.RKEY = 'ha;
         softr.fields.rsv0 = 'h0;
-        `I2C_REG_WR(intf, `I2C_GIE_ADDR, softr)
+        `I2C_REG_WR(intf, `I2C_SOFTR_ADDR, softr)
     endtask
 
     task irq_poll(input int intf, input int irq_bits);
@@ -60,10 +60,11 @@ class test_base;
     task read_fifo(intf);
         int dat, cnt;
         `I2C_REG_RD(intf, `I2C_RX_FIFO_OCY_ADDR, cnt);
-        while(cnt) begin
+        `I2C_REG_RD(intf, `I2C_SR_ADDR, sr);
+        while(!sr.fields.RX_FIFO_EMPTY) begin
             `I2C_REG_RD(intf, `I2C_RX_FIFO_ADDR, dat);
+            `I2C_REG_RD(intf, `I2C_SR_ADDR, sr);
             $display("[TEST_BASE] rx fifo read %0h", dat);
-            cnt--;
         end
     endtask
 endclass

@@ -12,3 +12,4 @@ $proj_folder/rtl/i2c_reg.v
 $proj_folder/rtl/i2c_debounce.v
 $proj_folder/rtl/i2c_mst_ctrl_bit.v
 $proj_folder/rtl/sync_fifo.v
+$proj_folder/rtl/i2c_dynamic_ctrl.v

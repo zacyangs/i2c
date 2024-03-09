@@ -146,7 +146,7 @@ module i2c_mst_ctrl_bit (
     // whenever the slave is not ready it can delay the cycle by pulling SCL low
     // delay scl_o  
     always @(posedge clk)
-      dscl_o   <= #10 scl_o  ;
+      dscl_o   <= scl_o  ;
 
     // slv_wait is asserted when master wants to drive SCL high, but the slave pulls it low
     // slv_wait remains asserted until the slave releases SCL
@@ -155,8 +155,8 @@ module i2c_mst_ctrl_bit (
     assign slv_wait_clr = slv_wait & scl_i;
 
     always @(posedge clk or negedge rstn)
-      if (!rstn) slv_wait <= #10 1'b0;
-      else       slv_wait <= #10 (slv_wait & ~slv_wait_clr) | slv_wait_set ;
+      if (!rstn) slv_wait <= 1'b0;
+      else       slv_wait <= (slv_wait & ~slv_wait_clr) | slv_wait_set ;
 
     // master drives SCL high, but another master pulls it low
     // master start counting down its low cycle now (clock synchronization)
@@ -168,47 +168,47 @@ module i2c_mst_ctrl_bit (
     reg cmd_stop;
     always @(posedge clk or negedge rstn)
       if (~rstn)
-          cmd_stop <= #10 1'b0;
+          cmd_stop <= 1'b0;
       else if (cstate == idle)
-          cmd_stop <= #10 cmd == `I2C_CMD_STOP;
+          cmd_stop <= cmd == `I2C_CMD_STOP;
 
     assign sda_chk = cstate == wr_b && wait_thigh_done;
     always @(posedge clk or negedge rstn)
       if (~rstn)
-          al <= #10 1'b0;
+          al <= 1'b0;
       else
-          al <= #10 (sda_chk & ~sda_i & sda_o  ) | (|cstate & sto_det & ~cmd_stop);
+          al <= (sda_chk & ~sda_i & sda_o  ) | (|cstate & sto_det & ~cmd_stop);
 
 
     // generate dout signal (store SDA on rising edge of SCL)
     always @(posedge clk) begin
-      if (scl_rising) dout <= #10 sda_i;
+      if (scl_rising) dout <= sda_i;
       if (scl_falling && (dout != sda_i) && cstate == rd_b) 
-          rsta_det <= 1'b1;
+          rsta_det <=1'b1;
       else if(cmd_ack)
-          rsta_det <= 1'b0;
+          rsta_det <=1'b0;
     end
 
 
     // generate statemachine
     always @(posedge clk or negedge rstn)
       if (!rstn) begin
-          cstate <= #10 idle;
-          scl_o   <= #10 1'b1;
-          sda_o   <= #10 1'b1;
-          cnt     <= #10 32'b0;
+          cstate <= idle;
+          scl_o   <= 1'b1;
+          sda_o   <= 1'b1;
+          cnt     <= 32'b0;
       end
       else if (al) begin
-          cstate <= #10 idle;
-          scl_o   <= #10 1'b1;
-          sda_o   <= #10 1'b1;
-          cnt     <= #10 32'b0;
+          cstate <= idle;
+          scl_o   <= 1'b1;
+          sda_o   <= 1'b1;
+          cnt     <= 32'b0;
       end
       else if(ena) begin 
-        cnt     <= #10 cnt_nxt;
-        cstate  <= #10 nstate;
-        scl_o   <= #10 scl_x;
-        sda_o   <= #10 sda_x;
+        cnt     <= cnt_nxt;
+        cstate  <= nstate;
+        scl_o   <= scl_x;
+        sda_o   <= sda_x;
       end
 
     always@(*) if(ena) begin
