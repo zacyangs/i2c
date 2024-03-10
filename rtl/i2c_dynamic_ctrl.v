@@ -4,7 +4,7 @@
 // Author        : Zack
 // Email         : zacyang@foxmail.com
 // Created On    : 2024/02/24 14:12
-// Last Modified : 2024/03/09 14:27
+// Last Modified : 2024/03/10 16:53
 // File Name     : i2c_mst_cmd_lay.v
 // Description   :
 //         
@@ -47,16 +47,16 @@ reg         load;
 reg         start_hold;
 wire        start_set;
 
-assign start         = !tx_fifo_empty && tx_fifo_dout[8] ||
-                        tx_fifo_empty && tx_fifo_wr && tx_fifo_din[8];
+assign start         = !tx_fifo_empty & tx_fifo_dout[8] |
+                        tx_fifo_empty & tx_fifo_wr & tx_fifo_din[8];
 assign start_set     = !start_hold & start;
 
-assign dyna_msms_set = start_set && cr_en && !cr_msms;
-assign dyna_rsta_set = start_set && cr_en &&  cr_msms;
-assign dyna_msms_clr = tx_fifo_rd && tx_fifo_dout[9];
+assign dyna_msms_set = start_set & cr_en & !cr_msms;
+assign dyna_rsta_set = start_set & cr_en &  cr_msms;
+assign dyna_msms_clr = (tx_fifo_rd | dyna_txak_set) & tx_fifo_dout[9];
 assign dyna_txak_set = rx_fifo_wr && rcnt == 2;
-assign dyna_txak_clr = tx_fifo_rd && tx_fifo_dout[9];
-assign dyna_tx_set   = tx_fifo_rd && tx_fifo_dout[8] && !tx_fifo_dout[0];
+assign dyna_txak_clr = start_set & cr_en;
+assign dyna_tx_set   = tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];
 assign dyna_tx_clr   = tx_fifo_rd && tx_fifo_dout[9] || 
                        tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];;
 

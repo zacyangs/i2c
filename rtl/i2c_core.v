@@ -42,12 +42,12 @@ module i2c_core(
     //Start of automatic wire
     //Define assign wires here
     wire                        sr_bb                           ;
-    wire                        cr_rsta_set                     ; // WIRE_NEW
-    wire                        cr_tx_set                       ; // WIRE_NEW
-    wire                        cr_tx_clr                       ; // WIRE_NEW
-    wire                        cr_txak_set                     ; // WIRE_NEW
-    wire                        cr_txak_clr                     ; // WIRE_NEW
-    wire                        cr_msms_set                     ; // WIRE_NEW
+    wire                        cr_rsta_set                     ;
+    wire                        cr_tx_set                       ;
+    wire                        cr_tx_clr                       ;
+    wire                        cr_txak_set                     ;
+    wire                        cr_txak_clr                     ;
+    wire                        cr_msms_set                     ;
     wire                        cr_msms_clr                     ;
     //Define instance wires here
     wire                        tx_fifo_rd                      ;
@@ -66,6 +66,7 @@ module i2c_core(
     wire                        dyna_tx_set                     ;
     wire                        dyna_tx_clr                     ;
     wire                        dyna_rsta_set                   ;
+    wire                        fsm_msms_clr                    ; // WIRE_NEW
     wire                        cr_tx                           ;
     wire                        cr_gcen                         ;
     wire                        cr_txak                         ;
@@ -130,7 +131,7 @@ assign cr_tx_clr   = dyna_tx_clr;
 assign cr_txak_set = dyna_txak_set;
 assign cr_txak_clr = dyna_txak_clr;
 assign cr_msms_set = dyna_msms_set;
-assign cr_msms_clr = al || dyna_msms_clr || irq_tx_err;
+assign cr_msms_clr = al || dyna_msms_clr || fsm_msms_clr;
 
 assign sr = {
     tx_fifo_empty,
@@ -208,6 +209,7 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .rstn                   (rstn                           ), //I
         .slv_addr               (slv_adr[7:0]                   ), //I
         .cr_msms                (cr_msms                        ), //I
+        .cr_msms_clr            (fsm_msms_clr                   ), //O // INST_NEW
         .cr_tx                  (cr_tx                          ), //I
         .cr_gcen                (cr_gcen                        ), //I
         .cr_txak                (cr_txak                        ), //I
@@ -219,7 +221,7 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .sr_srw                 (sr_srw                         ), //O
         .irq_nas                (irq_nas                        ), //O
         .irq_tx_err             (irq_tx_err                     ), //O
-        .irq_tx_empty           (irq_tx_empty                   ), //O // INST_NEW
+        .irq_tx_empty           (irq_tx_empty                   ), //O
         .cmd                    (cmd[3:0]                       ), //O
         .cmd_ack                (cmd_ack                        ), //I
         .phy_rx                 (phy_rx                         ), //I
