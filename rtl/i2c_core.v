@@ -2,7 +2,7 @@ module i2c_core(
     input           clk,
     input           rstn,
 
-    input   [9:0]   slv_adr,
+    input   [6:0]   slv_adr,
 
     input   [7:0]   cr,
     output  [7:0]   cr_clr,
@@ -207,7 +207,7 @@ i2c_dynamic_ctrl u_i2c_dynamic_ctrl(/*autoinst*/
 i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
-        .slv_addr               (slv_adr[7:0]                   ), //I
+        .slv_addr               (slv_adr[6:0]                   ), //I
         .cr_msms                (cr_msms                        ), //I
         .cr_msms_clr            (fsm_msms_clr                   ), //O // INST_NEW
         .cr_tx                  (cr_tx                          ), //I

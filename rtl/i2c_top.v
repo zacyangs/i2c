@@ -32,7 +32,7 @@ module i2c_top(
     wire                        rx_fifo_rd                      ;
     wire [7:0]                  rx_fifo_dout                    ;
     wire [4:0]                  rx_fifo_pirq                    ;
-    wire [9:0]                  slv_adr                         ;
+    wire [6:0]                  slv_adr                         ;
     wire                        srstn                           ;
     wire [7:0]                  cr                              ;
     wire [7:0]                  cr_clr                          ;
@@ -70,7 +70,7 @@ i2c_reg u_i2c_reg (/*autoinst*/
         .rx_fifo_rd             (rx_fifo_rd                     ), //O
         .rx_fifo_rdat           (rx_fifo_dout[7:0]              ), //I
         .rx_fifo_pirq           (rx_fifo_pirq[4:0]              ), //O
-        .slv_adr                (slv_adr[9:0]                   ), //O
+        .slv_adr                (slv_adr[6:0]                   ), //O
         .srstn                  (srstn                          ), //O
         .cr                     (cr[6:0]                        ), //O
         .cr_clr                 (cr_clr[6:0]                    ), //I

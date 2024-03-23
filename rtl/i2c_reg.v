@@ -87,7 +87,7 @@ begin
             9'h01c : gie        <= apb_wdata[31];
             9'h028 : ier        <= apb_wdata[7:0];
             9'h108 : txr        <= apb_wdata[9:0];
-            9'h110 : adr        <= apb_wdata[7:0];
+            9'h110 : adr        <= apb_wdata[7:1];
             9'h11c : ten_adr    <= apb_wdata[2:0];
             9'h120 : rx_pirq    <= apb_wdata[4:0];
             9'h128 : tsusta     <= apb_wdata[31:0];

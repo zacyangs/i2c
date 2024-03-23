@@ -11,7 +11,7 @@ class env;
     endfunction
 
     task run();
-        tb = factory::new_case("test_mst", apb, axi, irq);
+        tb = factory::new_case("test_slv", apb, axi, irq);
         tb.run();
     endtask
 

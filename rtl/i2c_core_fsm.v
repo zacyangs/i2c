@@ -4,7 +4,7 @@ module i2c_core_fsm(
     input               clk,
     input               rstn,
 
-    input       [7:0]   slv_addr,
+    input       [6:0]   slv_addr,
     input               cr_msms,
     output reg          cr_msms_clr,
     input               cr_tx,
@@ -114,7 +114,7 @@ assign scl_gauge_en = !msms && cstate == ST_ADDR;
 
 // status & interrupts
 assign gc_set  = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == 7'b0) & cr_gcen;
-assign aas_set = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == slv_addr[7:1]);
+assign aas_set = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == slv_addr[6:0]);
 
 assign aas_x   = rcv_sto ? 1'b0 : 
                  aas_set ? 1'b1 : 
@@ -281,7 +281,7 @@ assign req_sta_x   = req_sta_set ? 1'b1 :
                      req_sta;
 
 assign rx_ready      = rx_fifo_ocy[4:0]+1 < rx_fifo_pirq[4:0];
-assign rx_fifo_wr    = cstate == ST_RACK && cmd_ack;
+assign rx_fifo_wr    = cstate == ST_RACK && cmd_ack && !adr_ack;
 assign rx_fifo_din   = sr[7:0];
 assign rx_fifo_pfull = (rx_fifo_ocy[4:0] >= rx_fifo_pirq[4:0]);
 
