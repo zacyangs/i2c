@@ -1,5 +1,3 @@
-`include "i2c_master_defines.v"
-
 module i2c_core_fsm(
     input               clk,
     input               rstn,

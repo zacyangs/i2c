@@ -1,3 +1,4 @@
+`include "i2c_master_defines.v"
 module i2c_top(
     input           clk,
     input           rstn,
@@ -90,7 +91,7 @@ i2c_reg u_i2c_reg (/*autoinst*/
 i2c_core u_i2c_core(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
-        .slv_adr                (slv_adr[9:0]                   ), //I
+        .slv_adr                (slv_adr[6:0]                   ), //I
         .cr                     (cr[7:0]                        ), //I
         .cr_clr                 (cr_clr[7:0]                    ), //O
         .cr_set                 (cr_set[6:0]                    ), //O // INST_NEW

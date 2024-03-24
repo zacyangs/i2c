@@ -33,10 +33,7 @@
 // Tbuf        4.7us            1.3us   Bus free time between a stop and start condition
 //
 
-
-`include "i2c_master_defines.v"
-
-module i2c_mst_ctrl_bit (
+module i2c_phy_fsm (
     input             clk,      // system clock
     input             rstn,     // asynchronous active low reset
     input             ena,      // core enable signal

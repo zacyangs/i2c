@@ -59,7 +59,7 @@ assign thigh_mux = cr_msms ? thigh : thigh_gauge;
 //assign scl_gauge_en = !cr_msms;
 
 
-i2c_debounce u_i2c_phy_debounce(/*autoinst*/
+i2c_phy_debounce u_i2c_phy_debounce(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
         .scl                    (scl                            ), //IO
@@ -79,7 +79,7 @@ i2c_debounce u_i2c_phy_debounce(/*autoinst*/
         .sda_i                  (sda_i                          )  //O
     );
 
-i2c_mst_ctrl_bit u_i2c_phy_bit_ctrl(/*autoinst*/
+i2c_phy_fsm u_i2c_phy_fsm(/*autoinst*/
         .clk                    (clk                            ), //I
         .rstn                   (rstn                           ), //I
         .ena                    (ena                            ), //I

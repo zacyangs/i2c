@@ -1,4 +1,4 @@
-module i2c_debounce (
+module i2c_phy_debounce (
     input               clk,
     input               rstn,
 
