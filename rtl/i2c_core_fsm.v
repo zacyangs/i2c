@@ -6,6 +6,8 @@ module i2c_core_fsm(
     input               cr_msms,
     output reg          cr_msms_clr,
     input               cr_tx,
+    output              cr_tx_set,
+    output              cr_tx_clr,
     input               cr_gcen,
     input               cr_txak,
     input               cr_en,
@@ -30,6 +32,7 @@ module i2c_core_fsm(
     output      [7:0]   rx_fifo_din,
     input       [4:0]   rx_fifo_ocy,
 
+    input               rx_fifo_empty,
     input               tx_fifo_empty,
     output              tx_fifo_rd,
     input       [9:0]   tx_fifo_dout,
@@ -51,7 +54,8 @@ module i2c_core_fsm(
     localparam ST_WRITE = 4'h5;
     localparam ST_WACK  = 4'h6;
     localparam ST_STOP  = 4'h7;
-    localparam ST_SUSP  = 4'h8;
+    localparam ST_WSUSP  = 4'h8;
+    localparam ST_RSUSP  = 4'h9;
 
     reg  [3:0]  cstate;
     reg  [3:0]  nstate;
@@ -74,6 +78,7 @@ module i2c_core_fsm(
     wire        active_abort;
     wire        rsta_req;
     wire        tx; 
+    wire        cnt_clr;
 /*autodef*/
     //Start of automatic define
     //Start of automatic reg
@@ -93,18 +98,42 @@ module i2c_core_fsm(
     wire                        nas_x                           ;
     wire                        adr_ack                         ; // WIRE_NEW
     wire                        shift                           ;
-    wire                        dcnt_done                       ;
+    (* mark_debug="TRUE" *)wire                        dcnt_done                       ;
     //Define instance wires here
     //End of automatic wire
     //End of automatic define
 
 
+ila_64 u_ila_32(
+    .clk(clk),
+    .probe0({
+        cr_tx_clr,
+        cr_tx_set,
+        cstate,
+        dcnt_done,
+        cmd_ack,
+        cmd,
+        cr_tx,
+        cr_msms,
+        rx_ready,
+        tx_ready,
+        rx_fifo_ocy,
+        rx_fifo_pirq,
+        phy_rx,
+        phy_tx,
+        dcnt,
+        rx_fifo_wr,
+        rcv_rsta,
+        active_abort
+    })
+);
 
 assign msms_set = cr_msms && !cr_msms_r;
 assign msms_clr = cstate == ST_STOP && cmd_ack;
 assign msms_x   = msms_set ? 1'b1:
                   msms_clr ? 1'b0:
                   msms;
+
 
 assign tx       = msms? cr_tx : (aas_set? phy_rx : sr_srw);
 
@@ -113,6 +142,8 @@ assign scl_gauge_en = !msms && cstate == ST_ADDR;
 // status & interrupts
 assign gc_set  = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == 7'b0) & cr_gcen;
 assign aas_set = !msms & (cstate == ST_ADDR) & dcnt_done & (sr[6:0] == slv_addr[6:0]);
+assign cr_tx_set =  msms & (cstate == ST_ADDR) & dcnt_done & !phy_rx;
+assign cr_tx_clr =  msms & (cstate == ST_ADDR) & dcnt_done &  phy_rx;
 
 assign aas_x   = rcv_sto ? 1'b0 : 
                  aas_set ? 1'b1 : 
@@ -138,7 +169,7 @@ assign nas_x = nas_clr ? 1'b0 :
 // 4. WSSR: txak = 1
 
 assign irq_tx_err = (cstate == ST_WACK || cstate == ST_RACK) && phy_rx && cmd_ack;
-assign irq_tx_empty = (cstate == ST_SUSP) && tx_fifo_empty;
+assign irq_tx_empty = (cstate == ST_WSUSP) && tx_fifo_empty;
 
 assign adr_ack =  (pstate == ST_ADDR);
 
@@ -193,20 +224,12 @@ begin
             phy_tx = adr_ack & !(sr_aas | sr_abgc) | !adr_ack & cr_txak;
 
             if(cmd_ack) begin
-                if(phy_rx) begin
-                    if(cr_rsta)
-                        nstate = ST_START;
-                    else if(cr_msms)
-                        nstate = ST_SUSP;
-                    else
-                        nstate = msms ? ST_STOP : ST_IDLE;
-                end 
-                else if(tx_ready && tx)
-                    nstate = ST_WRITE;
-                else if(rx_ready && !tx)
-                    nstate = ST_READ;
+                if(!cr_msms & phy_rx)
+                    nstate = ST_IDLE;
+                else if(tx)
+                    nstate = ST_WSUSP;
                 else
-                    nstate = ST_SUSP;
+                    nstate = ST_RSUSP;
             end
         end
 
@@ -224,16 +247,10 @@ begin
             if(cmd_ack) begin
                 if(phy_rx | active_abort)
                     nstate = msms ? ST_STOP : ST_IDLE;
-                else if(cr_rsta)
-                    nstate = ST_START;
-                else if(tx_ready && tx)
-                    nstate = ST_WRITE;
-                else if(rx_ready && !tx)
-                    nstate = ST_READ;
+                else if(tx)
+                    nstate = ST_WSUSP;
                 else
-                    nstate = ST_SUSP;
-
-                load = !(phy_rx | active_abort | cr_rsta) & tx_ready;
+                    nstate = ST_RSUSP;
                 cr_msms_clr = phy_rx & msms;
             end
         end
@@ -243,21 +260,21 @@ begin
             if(cmd_ack) nstate = ST_IDLE;
         end
 
-        ST_SUSP : begin
+        ST_WSUSP : begin
             cmd = `I2C_CMD_WAIT;
-            if(!tx && !rx_fifo_pfull)
-                if(cr_rsta) 
-                    nstate = ST_START; // restore
-                else
-                    nstate = ST_READ;
-            else if(tx && tx_ready) 
-                if(cr_rsta)
-                    nstate = ST_START; // restore
-                else begin
-                    nstate = ST_WRITE ;
-                    load = 1'b1;
-                end
+            load = tx_ready && !cr_rsta;
+            if(tx_ready)
+                nstate = cr_rsta? ST_START : ST_WRITE;
         end
+        
+        ST_RSUSP : begin
+            cmd = `I2C_CMD_WAIT;
+            if(cr_rsta)
+                nstate = ST_WSUSP;
+            else if(rx_ready)
+                nstate = active_abort ? ST_STOP : ST_READ;
+        end
+
         default:;
     endcase
 end
@@ -278,10 +295,10 @@ assign req_sta_x   = req_sta_set ? 1'b1 :
                      req_sta_clr ? 1'b0 :
                      req_sta;
 
-assign rx_ready      = rx_fifo_ocy[4:0]+1 < rx_fifo_pirq[4:0];
+assign rx_ready      = rx_fifo_ocy[4:0] < rx_fifo_pirq[4:0] | rx_fifo_empty;
 assign rx_fifo_wr    = cstate == ST_RACK && cmd_ack && !adr_ack;
 assign rx_fifo_din   = sr[7:0];
-assign rx_fifo_pfull = (rx_fifo_ocy[4:0] >= rx_fifo_pirq[4:0]);
+assign rx_fifo_pfull = !rx_ready && (cstate == ST_RSUSP);
 
 assign tx_ready      = !tx_fifo_empty;
 assign tx_fifo_rd    = load;

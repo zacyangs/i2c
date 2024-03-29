@@ -1,4 +1,4 @@
-`include "i2c_master_defines.v"
+`include "i2c_defines.vh"
 module i2c_top(
     input           clk,
     input           rstn,
@@ -26,19 +26,19 @@ module i2c_top(
     //Start of automatic wire
     //Define assign wires here
     //Define instance wires here
-    wire [4:0]                  tx_fifo_ocy                     ;
+    (* mark_debug="TRUE" *)wire [4:0]                  tx_fifo_ocy                     ;
     wire                        tx_fifo_wr                      ;
     wire [9:0]                  tx_fifo_din                     ;
-    wire [4:0]                  rx_fifo_ocy                     ;
+    (* mark_debug="TRUE" *)wire [4:0]                  rx_fifo_ocy                     ;
     wire                        rx_fifo_rd                      ;
     wire [7:0]                  rx_fifo_dout                    ;
     wire [4:0]                  rx_fifo_pirq                    ;
     wire [6:0]                  slv_adr                         ;
     wire                        srstn                           ;
-    wire [7:0]                  cr                              ;
+    (* mark_debug="TRUE" *)wire [7:0]                  cr                              ;
     wire [7:0]                  cr_clr                          ;
     wire [6:0]                  cr_set                          ; // WIRE_NEW
-    wire [7:0]                  sr                              ;
+    (* mark_debug="TRUE" *)wire [7:0]                  sr                              ;
     wire [7:0]                  irq_req                         ;
     wire [31:0]                 tsusta                          ;
     wire [31:0]                 tsusto                          ;
@@ -113,7 +113,6 @@ i2c_core u_i2c_core(/*autoinst*/
         .tlow                   (tlow[31:0]                     ), //I
         .thigh                  (thigh[31:0]                    ), //I
         .tbuf                   (tbuf[31:0]                     ), //I
-        .cr_msms                (cr_msms                        ), //I
         .sda                    (i2c_sda                        ), //IO
         .scl                    (i2c_scl                        )  //IO
     );

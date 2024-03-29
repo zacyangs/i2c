@@ -118,6 +118,28 @@ module i2c_phy_fsm (
     // state machine variable
     reg [3:0] cstate, nstate; 
 
+
+//ila_32 u_ila_32(
+//    .clk(clk),
+//    .probe0({
+//        cnt,
+//        cstate,
+//        cstate,
+//    wait_thigh_done,
+//    wait_tlow_done, // hlow means half low
+//    wait_tbuf_done, // tbuf means half buf
+//    wait_tsusta_done,
+//    wait_thdsta_done,
+//    wait_tsudat_done,
+//    wait_thddat_done,
+//    wait_tsusto_done,
+//    slv_wait,
+//    scl_o,
+//    sda_o
+//    })
+//);
+
+
     //
     // module body
     //    

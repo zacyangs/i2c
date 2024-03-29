@@ -74,14 +74,14 @@ begin
         ten_adr     <= 3'b0;
         rx_pirq     <= 5'b1;
         txr         <= 10'b0;
-        tsusta      <= 50;
-        tsusto      <= 50;
-        thdsta      <= 50;
-        tsudat      <= 50;
-        tbuf        <= 50;
-        thigh       <= 50;
-        tlow        <= 50;
-        thddat      <= 50;
+        tsusta      <= 'h23a;
+        tsusto      <= 'h1f4;
+        thdsta      <= 'h1ae;
+        tsudat      <= 'h100;
+        tbuf        <= 'h1f4;
+        thigh       <= 'h1ed;
+        tlow        <= 'h1ed;
+        thddat      <= 'h40;
     end else if (wr_en) begin
         case (apb_addr[8:0])
             9'h01c : gie        <= apb_wdata[31];

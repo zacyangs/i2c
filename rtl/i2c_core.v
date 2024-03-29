@@ -15,7 +15,7 @@ module i2c_core(
     input   [4:0]   rx_fifo_pirq,
     output  [4:0]   rx_fifo_ocy,
     input           rx_fifo_rd,
-    input   [7:0]   rx_fifo_dout,
+    output  [7:0]   rx_fifo_dout,
 
     input      [13:0]   debounce_cnt,
     input      [31:0]   tsusta,
@@ -26,7 +26,6 @@ module i2c_core(
     input      [31:0]   tlow,
     input      [31:0]   thigh,
     input      [31:0]   tbuf,
-    input               cr_msms,
 
     inout           sda,
     inout           scl
@@ -50,12 +49,12 @@ module i2c_core(
     wire                        cr_msms_set                     ;
     wire                        cr_msms_clr                     ;
     //Define instance wires here
-    wire                        tx_fifo_rd                      ;
+    (* mark_debug="TRUE" *)wire                        tx_fifo_rd                      ;
     wire [9:0]                  tx_fifo_dout                    ;
-    wire                        tx_fifo_empty                   ;
+    (* mark_debug="TRUE" *)wire                        tx_fifo_empty                   ;
     wire                        tx_fifo_full                    ;
-    wire                        rx_fifo_empty                   ;
-    wire                        rx_fifo_wr                      ;
+    (* mark_debug="TRUE" *)wire                        rx_fifo_empty                   ;
+    (* mark_debug="TRUE" *)wire                        rx_fifo_wr                      ;
     wire [7:0]                  rx_fifo_din                     ;
     wire                        rx_fifo_full                    ;
     wire                        cr_en                           ;
@@ -76,14 +75,14 @@ module i2c_core(
     wire                        sr_aas                          ;
     wire                        sr_srw                          ;
     wire                        irq_nas                         ;
-    wire                        irq_tx_err                      ;
-    wire                        irq_tx_empty                    ;
+    (* mark_debug="TRUE" *)wire                        irq_tx_err                      ;
+    (* mark_debug="TRUE" *)wire                        irq_tx_empty                    ;
     wire [3:0]                  cmd                             ;
     wire                        cmd_ack                         ;
     wire                        phy_rx                          ;
     wire                        phy_tx                          ;
-    wire                        al                              ;
-    wire                        rx_fifo_pfull                   ;
+    (* mark_debug="TRUE" *)wire                        al                              ;
+    (* mark_debug="TRUE" *)wire                        rx_fifo_pfull                   ;
     wire                        scl_gauge_en                    ;
     wire                        msms                            ;
     wire                        rsta_det                        ;
@@ -92,6 +91,13 @@ module i2c_core(
     wire                        busy                            ;
     wire                        scl_rising                      ;
     wire                        scl_faling                      ;
+    wire                        cr_msms                         ;
+    wire                        cr_txfifo_rst                   ;
+    wire [4:0] tx_usedw; 
+    wire [4:0] rx_usedw; 
+    wire [4:0] rx_fifo_pfull_th;
+    wire fsm_tx_set;
+    wire fsm_tx_clr;
     //End of automatic wire
     //End of automatic define
 
@@ -126,8 +132,8 @@ assign cr_set = {
     };
 
 assign cr_rsta_set = dyna_rsta_set;
-assign cr_tx_set   = dyna_tx_set;
-assign cr_tx_clr   = dyna_tx_clr;
+assign cr_tx_set   = dyna_tx_set || fsm_tx_set;
+assign cr_tx_clr   = dyna_tx_clr || fsm_tx_clr;
 assign cr_txak_set = dyna_txak_set;
 assign cr_txak_clr = dyna_txak_clr;
 assign cr_msms_set = dyna_msms_set;
@@ -154,6 +160,9 @@ assign irq_req = {
     irq_tx_err,
     al};
 
+assign tx_fifo_ocy[4:0] = tx_usedw[4:0] - !tx_fifo_empty;
+assign rx_fifo_ocy[4:0] = rx_usedw[4:0] - !rx_fifo_empty;
+assign rx_fifo_pfull_th[4:0] = rx_fifo_pirq[4:0];
 
 sync_fifo#(.DW(10), .DEPTH(16)) u_tx_fifo (/*autoinst*/
         .clk                    (clk                            ), //I
@@ -164,7 +173,7 @@ sync_fifo#(.DW(10), .DEPTH(16)) u_tx_fifo (/*autoinst*/
         .wr                     (tx_fifo_wr                     ), //I
         .din                    (tx_fifo_din[9:0]               ), //I
         .full                   (tx_fifo_full                   ), //O
-        .usedw                  (tx_fifo_ocy[4:0]               )  //O
+        .usedw                  (tx_usedw[4:0]               )  //O
         //INST_DEL: Port DW has been deleted.
         //INST_DEL: Port DEPTH has been deleted.
     );
@@ -179,7 +188,7 @@ sync_fifo #( .DW(8), .DEPTH(16)) u_rx_fifo (/*autoinst*/
         .wr                     (rx_fifo_wr                     ), //I
         .din                    (rx_fifo_din[7:0]               ), //I
         .full                   (rx_fifo_full                   ), //O
-        .usedw                  (rx_fifo_ocy[4:0]               )  //O
+        .usedw                  (rx_usedw[4:0]               )  //O
     );
 
 
@@ -210,6 +219,8 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .slv_addr               (slv_adr[6:0]                   ), //I
         .cr_msms                (cr_msms                        ), //I
         .cr_msms_clr            (fsm_msms_clr                   ), //O // INST_NEW
+        .cr_tx_set              (fsm_tx_set                     ),
+        .cr_tx_clr              (fsm_tx_clr                     ),
         .cr_tx                  (cr_tx                          ), //I
         .cr_gcen                (cr_gcen                        ), //I
         .cr_txak                (cr_txak                        ), //I
@@ -227,11 +238,12 @@ i2c_core_fsm u_i2c_core_fsm(/*autoinst*/
         .phy_rx                 (phy_rx                         ), //I
         .phy_tx                 (phy_tx                         ), //O
         .phy_abort              (al                             ), //I
-        .rx_fifo_pirq           (rx_fifo_pirq[4:0]              ), //I
+        .rx_fifo_pirq           (rx_fifo_pfull_th[4:0]          ), //I
         .rx_fifo_pfull          (rx_fifo_pfull                  ), //O
         .rx_fifo_wr             (rx_fifo_wr                     ), //O
         .rx_fifo_din            (rx_fifo_din[7:0]               ), //O
         .rx_fifo_ocy            (rx_fifo_ocy[4:0]               ), //I
+        .rx_fifo_empty          (rx_fifo_empty                  ), //I
         .tx_fifo_empty          (tx_fifo_empty                  ), //I
         .tx_fifo_rd             (tx_fifo_rd                     ), //O
         .tx_fifo_dout           (tx_fifo_dout[9:0]              ), //I

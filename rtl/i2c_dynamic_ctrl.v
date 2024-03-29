@@ -46,6 +46,7 @@ reg         load;
 
 reg         start_hold;
 wire        start_set;
+wire        start;
 
 assign start         = !tx_fifo_empty & tx_fifo_dout[8] |
                         tx_fifo_empty & tx_fifo_wr & tx_fifo_din[8];
@@ -53,7 +54,7 @@ assign start_set     = !start_hold & start;
 
 assign dyna_msms_set = start_set & cr_en & !cr_msms;
 assign dyna_rsta_set = start_set & cr_en &  cr_msms;
-assign dyna_msms_clr = (tx_fifo_rd | dyna_txak_set) & tx_fifo_dout[9];
+assign dyna_msms_clr = (tx_fifo_rd | rx_fifo_wr && rcnt == 1) & tx_fifo_dout[9];
 assign dyna_txak_set = rx_fifo_wr && rcnt == 2;
 assign dyna_txak_clr = start_set & cr_en;
 assign dyna_tx_set   = tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];

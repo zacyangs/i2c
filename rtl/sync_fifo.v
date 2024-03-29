@@ -11,7 +11,7 @@ module sync_fifo#(
     output  reg         empty,
 
     input               wr,
-    input   [DW-1:0]    din,
+    input       [DW-1:0]din,
     output  reg         full,
 
     output  reg  [AW:0] usedw
@@ -32,18 +32,21 @@ reg  [DW-1:0]   q_cache;
 reg  [DW-1:0]   q_tmp;
 reg             show_ahead;
 
-assign wptr_nxt   = wr? wptr + 1 : wptr;
-assign rptr_nxt   = rd? rptr + 1 : rptr;
+assign wr_int     = wr & (!full);
+assign rd_int     = rd & (!empty);
+
+assign wptr_nxt   = wr_int? wptr + 1 : wptr;
+assign rptr_nxt   = rd_int? rptr + 1 : rptr;
 
 // set has higher priority over clear
-assign empty_set  = rd && !wr && (usedw == 1);
-assign empty_clr  = wr;
+assign empty_set  = rd_int && !wr_int && (usedw == 1);
+assign empty_clr  = wr_int;
 assign empty_nxt  = empty_set ? 1'b1 :
                     empty_clr ? 1'b0 : empty;
 
 // set has higher priority over clear
-assign full_set = wr && !rd && (usedw == DEPTH - 1);
-assign full_clr = rd;
+assign full_set = wr_int && !rd_int && (usedw == DEPTH - 1);
+assign full_clr = rd_int;
 assign full_nxt = full_set ? 1'b1 : 
                   full_clr ? 1'b0 : (usedw == DEPTH);
 
@@ -62,7 +65,7 @@ begin
         empty       <= empty_nxt;
         full        <= full_nxt;
 
-        if(wr && (usedw == {{AW-1{1'b0}}, rd}))
+        if(wr_int && (usedw == {{AW-1{1'b0}}, rd_int}))
             show_ahead <= 1'b1;
         else 
             show_ahead <= 1'b0;
@@ -71,19 +74,19 @@ end
 
 
 
-// used words in the fifo
+// used word_ints in the fifo
 always @(posedge clk or negedge rstn) begin : proc_usedw
     if(!rstn) begin
         usedw <= 0;
-    end else if(rd && !wr) begin
+    end else if(rd_int && !wr_int) begin
         usedw <= usedw - 1;
-    end else if(!rd && wr) begin
+    end else if(!rd_int && wr_int) begin
         usedw <= usedw + 1;
     end
 end
 
 always @(posedge clk) begin
-    if(wr)
+    if(wr_int)
         mem[wptr] <= din;
 
     q_tmp   <= mem[rptr_nxt];
