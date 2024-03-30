@@ -54,27 +54,51 @@ assign start_set     = !start_hold & start;
 
 assign dyna_msms_set = start_set & cr_en & !cr_msms;
 assign dyna_rsta_set = start_set & cr_en &  cr_msms;
-assign dyna_msms_clr = (tx_fifo_rd | rx_fifo_wr && rcnt == 1) & tx_fifo_dout[9];
+assign dyna_msms_clr = (tx_fifo_rd | (rx_fifo_wr & rcnt == 1)) & tx_fifo_dout[9];
 assign dyna_txak_set = rx_fifo_wr && rcnt == 2;
 assign dyna_txak_clr = start_set & cr_en;
-assign dyna_tx_set   = tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];
+assign dyna_tx_set   = tx_fifo_rd && tx_fifo_dout[8] && (!tx_fifo_dout[0]);
 assign dyna_tx_clr   = tx_fifo_rd && tx_fifo_dout[9] || 
-                       tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];;
+                       tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];
+
+
+ila_32 u_ila_32(
+    .clk(clk),
+    .probe0({
+    cr_en,
+    cr_msms,
+    dyna_msms_set,
+    dyna_msms_clr,
+    dyna_txak_set,
+    dyna_txak_clr,
+    dyna_tx_set,
+    dyna_tx_clr,
+    dyna_rsta_set,
+    tx_fifo_empty,
+    tx_fifo_rd,
+    tx_fifo_dout,
+    tx_fifo_wr,
+    tx_fifo_din,
+    rx_fifo_wr
+    
+    })
+);
+
 
 always@(posedge clk or negedge rstn)
 begin
     if(!rstn) begin
-        rcnt <=8'b0;
-        load <=1'b0;
+        rcnt <= 8'b0;
+        load <= 1'b0;
         start_hold <= 1'b0;
     end
     else begin
         load <= tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];
         start_hold <= start;
         if(load)
-            rcnt <=tx_fifo_dout[7:0];
+            rcnt <= tx_fifo_dout[7:0];
         else if(rx_fifo_wr)
-            rcnt <=rcnt - 1;
+            rcnt <= rcnt - 1;
     end
 end
 
