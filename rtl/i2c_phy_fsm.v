@@ -184,19 +184,20 @@ module i2c_phy_fsm (
     // aribitration lost when:
     // 1) master drives SDA high, but the i2c bus is low
     // 2) stop detected while not requested
-    reg cmd_stop;
-    always @(posedge clk or negedge rstn)
-      if (~rstn)
-          cmd_stop <= 1'b0;
-      else if (cstate == idle)
-          cmd_stop <= cmd == `I2C_CMD_STOP;
+    wire cmd_stop;
+    assign cmd_stop = (cstate != idle && cmd == `I2C_CMD_STOP)
+    //always @(posedge clk or negedge rstn)
+    //  if (~rstn)
+    //      cmd_stop <= 1'b0;
+    //  else if (cstate == idle)
+    //      cmd_stop <= cmd == `I2C_CMD_STOP;
 
-    assign sda_chk = cstate == wr_b && wait_thigh_done;
+    assign sda_chk = cstate == wr_b && nstate == wr_c;
     always @(posedge clk or negedge rstn)
       if (~rstn)
           al <= 1'b0;
       else
-          al <= (sda_chk & ~sda_i & sda_o  ) | (|cstate & sto_det & ~cmd_stop);
+          al <= (sda_chk & ~sda_i & sda_o) | (|cstate & sto_det & ~cmd_stop);
 
 
     // generate dout signal (store SDA on rising edge of SCL)
