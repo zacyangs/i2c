@@ -94,6 +94,8 @@ module i2c_core_fsm(
     wire                        nas_x                           ;
     wire                        shift                           ;
     wire                        cnt_done                       ;
+    wire rack_done;
+    wire wack_done;
     //Define instance wires here
     //End of automatic wire
     //End of automatic define
@@ -119,7 +121,11 @@ ila_64 u_ila_32(
         cnt,
         rx_fifo_wr,
         rcv_rsta,
-        active_abort
+        active_abort,
+        aas_set,
+        adr_phase,
+        msms,
+        ack_done
     })
 );
 
@@ -140,7 +146,7 @@ assign scl_gauge_en  = cstate == ST_READ && adr_phase;
 
 assign rack_done     = (cstate == ST_RACK) & cmd_ack;
 assign wack_done     = (cstate == ST_WACK) & cmd_ack;
-assign ack_done      = rack_done & wack_done;
+assign ack_done      = rack_done | wack_done;
 
 assign adr_phase_set = (cstate == ST_IDLE)  & rcv_sta |
                        (cstate == ST_START) & cmd_ack;
@@ -268,8 +274,8 @@ assign cr_tx_set =  msms & adr_phase & cnt_done & !phy_rx;
 assign cr_tx_clr =  msms & adr_phase & cnt_done &  phy_rx;
 
 // when working as a master transmiter
-// both of the conditions below can cause a tx error
-// and cr_msms need to be cleared
+// both of the conditions below could cause tx error
+// and in such cases cr_msms needs to be cleared
 // a. no slave respond for address call
 // b. the slave issure nak to signal that it is not accepting anymore data
 assign cr_msms_clr = wack_done & phy_rx;
@@ -321,6 +327,7 @@ begin
         sr_srw          <= 1'b0;
         cr_msms_r       <= cr_msms;
         msms            <= 1'b0;
+        adr_phase       <= 1'b0;
     end
     else begin
         cstate          <= nstate;
@@ -332,6 +339,7 @@ begin
         sr_abgc         <= abgc_x;
         cr_msms_r       <= cr_msms;
         msms            <= msms_x;
+        adr_phase       <= adr_phase_x;
     end
 end
 

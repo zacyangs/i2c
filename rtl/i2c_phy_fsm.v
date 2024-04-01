@@ -119,25 +119,23 @@ module i2c_phy_fsm (
     reg [3:0] cstate, nstate; 
 
 
-//ila_32 u_ila_32(
-//    .clk(clk),
-//    .probe0({
-//        cnt,
-//        cstate,
-//        cstate,
-//    wait_thigh_done,
-//    wait_tlow_done, // hlow means half low
-//    wait_tbuf_done, // tbuf means half buf
-//    wait_tsusta_done,
-//    wait_thdsta_done,
-//    wait_tsudat_done,
-//    wait_thddat_done,
-//    wait_tsusto_done,
-//    slv_wait,
-//    scl_o,
-//    sda_o
-//    })
-//);
+ila_32 u_ila_32(
+    .clk(clk),
+    .probe0({
+        cnt,
+        cstate,
+        nstate,
+    sda_chk,
+    slv_wait,
+    scl_o,
+    sda_o,
+    al,
+    sda_i,
+    sto_det,
+    msms,
+    cmd_stop
+    })
+);
 
 
     //
@@ -185,7 +183,7 @@ module i2c_phy_fsm (
     // 1) master drives SDA high, but the i2c bus is low
     // 2) stop detected while not requested
     wire cmd_stop;
-    assign cmd_stop = (cstate != idle && cmd == `I2C_CMD_STOP)
+    assign cmd_stop = (cmd == `I2C_CMD_STOP);
     //always @(posedge clk or negedge rstn)
     //  if (~rstn)
     //      cmd_stop <= 1'b0;
@@ -197,7 +195,7 @@ module i2c_phy_fsm (
       if (~rstn)
           al <= 1'b0;
       else
-          al <= (sda_chk & ~sda_i & sda_o) | (|cstate & sto_det & ~cmd_stop);
+          al <= (sda_chk & ~sda_i & sda_o) | (sto_det & ~cmd_stop & msms);
 
 
     // generate dout signal (store SDA on rising edge of SCL)
