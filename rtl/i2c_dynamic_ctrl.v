@@ -4,7 +4,7 @@
 // Author        : Zack
 // Email         : zacyang@foxmail.com
 // Created On    : 2024/02/24 14:12
-// Last Modified : 2024/03/10 16:53
+// Last Modified : 2024/04/04 15:18
 // File Name     : i2c_mst_cmd_lay.v
 // Description   :
 //         
@@ -62,27 +62,27 @@ assign dyna_tx_clr   = tx_fifo_rd && tx_fifo_dout[9] ||
                        tx_fifo_rd && tx_fifo_dout[8] && tx_fifo_dout[0];
 
 
-ila_32 u_ila_32(
-    .clk(clk),
-    .probe0({
-    cr_en,
-    cr_msms,
-    dyna_msms_set,
-    dyna_msms_clr,
-    dyna_txak_set,
-    dyna_txak_clr,
-    dyna_tx_set,
-    dyna_tx_clr,
-    dyna_rsta_set,
-    tx_fifo_empty,
-    tx_fifo_rd,
-    tx_fifo_dout,
-    tx_fifo_wr,
-    tx_fifo_din,
-    rx_fifo_wr
-    
-    })
-);
+//ila_32 u_ila_32(
+//    .clk(clk),
+//    .probe0({
+//    cr_en,
+//    cr_msms,
+//    dyna_msms_set,
+//    dyna_msms_clr,
+//    dyna_txak_set,
+//    dyna_txak_clr,
+//    dyna_tx_set,
+//    dyna_tx_clr,
+//    dyna_rsta_set,
+//    tx_fifo_empty,
+//    tx_fifo_rd,
+//    tx_fifo_dout,
+//    tx_fifo_wr,
+//    tx_fifo_din,
+//    rx_fifo_wr
+//    
+//    })
+//);
 
 
 always@(posedge clk or negedge rstn)

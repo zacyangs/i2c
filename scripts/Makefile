@@ -6,7 +6,7 @@ DATE=$(shell date +%Y%m%d)
 xil_defaultlib = ${OUTPUTS}/xil_defaultlib
 COMP_OPTS=-full64
 COMP_OPTS+=+define+FOR_SIM+USE_DUT
-COMP_OPTS+=+incdir+${proj_folder}/testbench+${proj_folder}/include
+COMP_OPTS+=+incdir+${proj_folder}/testbench+${proj_folder}/includes
 COMP_OPTS+=+warn=[no]IPDASP,none 
 COMP_OPTS+=-sverilog 
 COMP_OPTS+=-timescale=1ns/1ps 

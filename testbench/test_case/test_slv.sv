@@ -47,13 +47,13 @@ class test_slv extends test_base;
                 axi[0].rd(`I2C_RX_FIFO_OCY_ADDR, rx_fifo_ocy);
                 repeat(rx_fifo_ocy.fields.occupacy_value+1) begin
                     axi[0].rd(`I2C_RX_FIFO_ADDR, rx);
-                    if(rcnt != len)begin
+                    //if(rcnt != len)begin
                         gold = txq.pop_front();
-                        //$display("[TEST_MST][RX][INFO] data compare: gold[%02h], dut[%02h]", gold, rx);
+                        $display("[TEST_MST][RX][INFO] data compare: gold[%02h], dut[%02h]", gold, rx);
                         assert(rx == gold)
                         else 
                         $display("[TEST_MST][RX][ERROR] data compare: gold[%02h], dut[%02h]", gold, rx);
-                    end
+                    //end
                     rcnt--;
                 end
                 if(rcnt < 15)

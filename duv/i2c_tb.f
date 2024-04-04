@@ -9,7 +9,7 @@ $proj_folder/rtl/i2c_core.v
 $proj_folder/rtl/i2c_core_fsm.v
 $proj_folder/rtl/i2c_phy.v
 $proj_folder/rtl/i2c_reg.v
-$proj_folder/rtl/i2c_debounce.v
-$proj_folder/rtl/i2c_mst_ctrl_bit.v
+$proj_folder/rtl/i2c_phy_debounce.v
+$proj_folder/rtl/i2c_phy_fsm.v
 $proj_folder/rtl/sync_fifo.v
 $proj_folder/rtl/i2c_dynamic_ctrl.v

@@ -119,23 +119,23 @@ module i2c_phy_fsm (
     reg [3:0] cstate, nstate; 
 
 
-ila_32 u_ila_32(
-    .clk(clk),
-    .probe0({
-        cnt,
-        cstate,
-        nstate,
-    sda_chk,
-    slv_wait,
-    scl_o,
-    sda_o,
-    al,
-    sda_i,
-    sto_det,
-    msms,
-    cmd_stop
-    })
-);
+//ila_32 u_ila_32(
+//    .clk(clk),
+//    .probe0({
+//        cnt,
+//        cstate,
+//        nstate,
+//    sda_chk,
+//    slv_wait,
+//    scl_o,
+//    sda_o,
+//    al,
+//    sda_i,
+//    sto_det,
+//    msms,
+//    cmd_stop
+//    })
+//);
 
 
     //

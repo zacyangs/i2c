@@ -101,33 +101,33 @@ module i2c_core_fsm(
     //End of automatic define
 
 
-ila_64 u_ila_32(
-    .clk(clk),
-    .probe0({
-        cr_tx_clr,
-        cr_tx_set,
-        cstate,
-        cnt_done,
-        cmd_ack,
-        cmd,
-        cr_tx,
-        cr_msms,
-        rx_ready,
-        tx_ready,
-        rx_fifo_ocy,
-        rx_fifo_pirq,
-        phy_rx,
-        phy_tx,
-        cnt,
-        rx_fifo_wr,
-        rcv_rsta,
-        active_abort,
-        aas_set,
-        adr_phase,
-        msms,
-        ack_done
-    })
-);
+//ila_64 u_ila_32(
+//    .clk(clk),
+//    .probe0({
+//        cr_tx_clr,
+//        cr_tx_set,
+//        cstate,
+//        cnt_done,
+//        cmd_ack,
+//        cmd,
+//        cr_tx,
+//        cr_msms,
+//        rx_ready,
+//        tx_ready,
+//        rx_fifo_ocy,
+//        rx_fifo_pirq,
+//        phy_rx,
+//        phy_tx,
+//        cnt,
+//        rx_fifo_wr,
+//        rcv_rsta,
+//        active_abort,
+//        aas_set,
+//        adr_phase,
+//        msms,
+//        ack_done
+//    })
+//);
 
 // cr_msms could be cleared before transfer is done
 // so we must use another signal here as a indicator of 

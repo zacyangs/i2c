@@ -184,20 +184,4 @@ assign isr_nxt[7:0] = (isr[7:0] & (~isr_clr[7:0])) | isr_set[7:0];
 assign irq          = |(isr & ier) & gie;
 
 
-ila_32 u_ila_32(
-    .clk(clk),
-    .probe0({
-//        apb_en,
-//        apb_write,
-//        apb_addr[9:0],
-//        apb_wdata[9:0],
-//        apb_rdata[7:0],
-        irq,
-        isr_set,
-        isr_clr,
-        isr
-    })
-);
-
-
 endmodule
