@@ -149,6 +149,7 @@ assign wack_done     = (cstate == ST_WACK) & cmd_ack;
 assign ack_done      = rack_done | wack_done;
 
 assign adr_phase_set = (cstate == ST_IDLE)  & rcv_sta |
+                       (cstate == ST_READ) & rcv_rsta |
                        (cstate == ST_START) & cmd_ack;
 assign adr_phase_x   = ack_done ? 1'b0 :
                        adr_phase_set ? 1'b1 : adr_phase;
@@ -180,6 +181,7 @@ begin
         ST_READ  : begin
             cmd = `I2C_CMD_READ;
             if(cnt_done) nstate = ST_RACK;
+            else if(rcv_sto) nstate = ST_IDLE;
         end
 
         ST_RACK : begin
@@ -285,7 +287,7 @@ assign cr_msms_clr = wack_done & phy_rx;
 assign cr_rsta_clr = cr_rsta && (cstate == ST_START) && cmd_ack;
 
 
-assign aas_x     = rcv_sto ? 1'b0 : 
+assign aas_x     = nas_set ? 1'b0 : 
                    aas_set ? 1'b1 : 
                    sr_aas;
 
@@ -294,7 +296,7 @@ assign abgc_x    = rcv_sto  ? 1'b0 :
                    sr_abgc;
 
 assign nas_clr   = aas_set | gc_set;
-assign nas_set   = rcv_sto;
+assign nas_set   = rcv_sto | rcv_rsta;
 
 assign nas_x     = nas_clr ? 1'b0 : 
                    nas_set ? 1'b1 :
