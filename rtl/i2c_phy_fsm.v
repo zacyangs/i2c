@@ -306,6 +306,7 @@ module i2c_phy_fsm (
                   scl_x = 1'b1; // set SCL high
                   sda_x = 1'b1; // keep SDA tri-stated
                   if(wait_thigh_done && msms || scl_falling && !msms) nstate = rd_c;
+                  else if(sto_det) nstate = idle;
               end
 
               rd_c: begin
